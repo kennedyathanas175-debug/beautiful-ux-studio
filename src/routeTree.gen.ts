@@ -10,33 +10,89 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ExploreRouteImport } from './routes/explore'
+import { Route as InnovationsSlugRouteImport } from './routes/innovations.$slug'
+import { Route as InnovatorsIndexRouteImport } from './routes/innovators.index'
+import { Route as InnovatorsSlugRouteImport } from './routes/innovators.$slug'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExploreRoute = ExploreRouteImport.update({
+  id: '/explore',
+  path: '/explore',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InnovationsSlugRoute = InnovationsSlugRouteImport.update({
+  id: '/innovations/$slug',
+  path: '/innovations/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InnovatorsIndexRoute = InnovatorsIndexRouteImport.update({
+  id: '/innovators/',
+  path: '/innovators/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InnovatorsSlugRoute = InnovatorsSlugRouteImport.update({
+  id: '/innovators/$slug',
+  path: '/innovators/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/explore': typeof ExploreRoute
+  '/innovations/$slug': typeof InnovationsSlugRoute
+  '/innovators/$slug': typeof InnovatorsSlugRoute
+  '/innovators/': typeof InnovatorsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/explore': typeof ExploreRoute
+  '/innovations/$slug': typeof InnovationsSlugRoute
+  '/innovators/$slug': typeof InnovatorsSlugRoute
+  '/innovators': typeof InnovatorsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/explore': typeof ExploreRoute
+  '/innovations/$slug': typeof InnovationsSlugRoute
+  '/innovators/$slug': typeof InnovatorsSlugRoute
+  '/innovators/': typeof InnovatorsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/explore'
+    | '/innovations/$slug'
+    | '/innovators/$slug'
+    | '/innovators/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/explore'
+    | '/innovations/$slug'
+    | '/innovators/$slug'
+    | '/innovators'
+  id:
+    | '__root__'
+    | '/'
+    | '/explore'
+    | '/innovations/$slug'
+    | '/innovators/$slug'
+    | '/innovators/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ExploreRoute: typeof ExploreRoute
+  InnovationsSlugRoute: typeof InnovationsSlugRoute
+  InnovatorsSlugRoute: typeof InnovatorsSlugRoute
+  InnovatorsIndexRoute: typeof InnovatorsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +104,43 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/explore': {
+      id: '/explore'
+      path: '/explore'
+      fullPath: '/explore'
+      preLoaderRoute: typeof ExploreRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/innovations/$slug': {
+      id: '/innovations/$slug'
+      path: '/innovations/$slug'
+      fullPath: '/innovations/$slug'
+      preLoaderRoute: typeof InnovationsSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/innovators/': {
+      id: '/innovators/'
+      path: '/innovators'
+      fullPath: '/innovators/'
+      preLoaderRoute: typeof InnovatorsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/innovators/$slug': {
+      id: '/innovators/$slug'
+      path: '/innovators/$slug'
+      fullPath: '/innovators/$slug'
+      preLoaderRoute: typeof InnovatorsSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ExploreRoute: ExploreRoute,
+  InnovationsSlugRoute: InnovationsSlugRoute,
+  InnovatorsSlugRoute: InnovatorsSlugRoute,
+  InnovatorsIndexRoute: InnovatorsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
