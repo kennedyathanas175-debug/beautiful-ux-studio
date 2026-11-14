@@ -1,10 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
-import { ArrowRight, Search, Sparkles, Users, Rocket, Handshake, BadgeCheck, MapPin, TrendingUp, Lightbulb, Building2, Map } from "lucide-react";
-import heroImg from "@/assets/hero-innovators.jpg";
+import { useEffect, useState } from "react";
+import { ArrowRight, Search, Sparkles, Users, Rocket, Handshake, BadgeCheck, MapPin, TrendingUp, Lightbulb, Building2, Map, ChevronLeft, ChevronRight, Megaphone } from "lucide-react";
+import { photos } from "@/data/photos";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { categories, impactStats, innovations, innovators, institutions, opportunities, getInnovator, getInstitution, type Opportunity } from "@/data/catalog";
+import { categories, impactStats, innovations, innovators, institutions, opportunities, getInnovator, getInstitution, daysUntil, type Opportunity } from "@/data/catalog";
 import { usePrefs } from "@/lib/prefs";
 import { CategoryIcon, SectionHeader, StageBadge, Avatar, useCategoryLabel } from "@/components/site/bits";
 import { InnovationCard, InnovatorCard, OpportunityCard, TrendingRow, InstitutionMonogram, LikeSaveActions } from "@/components/site/cards";
@@ -36,8 +37,10 @@ function HomePage() {
   return (
     <>
       <Hero />
-      <InstitutionStrip />
+      <QuickLinks />
+      <NewsAndAnnouncements onOpen={setOpp} />
       <Featured />
+      <InstitutionStrip />
       <Categories />
       <Trending />
       <Impact />
@@ -53,28 +56,52 @@ function Hero() {
   const { t } = usePrefs();
   const navigate = useNavigate();
   const [q, setQ] = useState("");
+  const [idx, setIdx] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const slides = [photos.darDusk, photos.kilimanjaro, photos.stoneTown, photos.arusha, photos.dodoma];
   const popular = ["Solar", "Agritech", "Kiswahili AI", "Telemedicine"];
-  const piloting = innovations[0];
+
+  useEffect(() => {
+    if (paused || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const id = window.setInterval(() => setIdx((i) => (i + 1) % slides.length), 6500);
+    return () => window.clearInterval(id);
+  }, [paused, slides.length]);
+
+  const go = (d: number) => setIdx((i) => (i + d + slides.length) % slides.length);
+  const current = slides[idx];
 
   return (
-    <section className="relative overflow-hidden">
-      <div className="pointer-events-none absolute inset-0 bg-dots opacity-70 [mask-image:radial-gradient(ellipse_at_top_left,black,transparent_65%)]" />
-      <div className="container-tie relative grid items-center gap-12 pb-16 pt-10 sm:pt-14 lg:grid-cols-[1.05fr_1fr] lg:gap-14 lg:pb-24 lg:pt-20">
-        <div className="animate-fade-up">
-          <Badge variant="gold" className="px-3 py-1 text-[0.72rem]">
-            <Sparkles className="size-3.5" />
-            {t("hero.badge")}
-          </Badge>
-          <h1 className="mt-5 text-[2.35rem] font-extrabold leading-[1.05] text-foreground sm:text-6xl lg:text-[4.1rem]">
-            {t("hero.title.1")}{" "}
-            <span className="relative inline-block text-navy dark:text-gold">
-              {t("hero.title.2")}
-              <svg className="absolute -bottom-2 left-0 h-3 w-full text-gold" viewBox="0 0 300 12" preserveAspectRatio="none" aria-hidden>
-                <path d="M2 9C60 3 140 2 298 7" stroke="currentColor" strokeWidth="4" fill="none" strokeLinecap="round" />
-              </svg>
-            </span>
+    <section
+      className="relative overflow-hidden bg-navy text-navy-foreground"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      aria-roledescription="carousel"
+    >
+      {slides.map((p, i) => (
+        <img
+          key={p.src}
+          src={p.src}
+          alt={i === idx ? p.place : ""}
+          aria-hidden={i !== idx}
+          fetchPriority={i === 0 ? "high" : "auto"}
+          className={cn(
+            "absolute inset-0 h-full w-full object-cover transition-[opacity,transform] duration-[1400ms] ease-out",
+            i === idx ? "scale-100 opacity-100" : "scale-105 opacity-0",
+          )}
+        />
+      ))}
+      <div className="absolute inset-0 bg-gradient-to-r from-navy via-navy/85 to-navy/20" />
+      <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-navy/80 to-transparent" />
+
+      <div className="container-tie relative flex min-h-[560px] flex-col justify-center py-14 sm:min-h-[600px] lg:py-20">
+        <div className="max-w-2xl animate-fade-up">
+          <p className="inline-flex items-center gap-2 rounded bg-gold px-2.5 py-1 text-[0.7rem] font-bold uppercase tracking-[0.14em] text-gold-foreground">
+            <Sparkles className="size-3.5" /> {t("hero.badge")}
+          </p>
+          <h1 className="mt-5 text-[2.3rem] font-extrabold leading-[1.06] sm:text-6xl">
+            {t("hero.title.1")} <span className="text-gold">{t("hero.title.2")}</span>
           </h1>
-          <p className="mt-6 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">{t("hero.body")}</p>
+          <p className="mt-5 max-w-xl text-base leading-relaxed text-navy-foreground/85 sm:text-lg">{t("hero.body")}</p>
 
           <form
             role="search"
@@ -82,9 +109,9 @@ function Hero() {
               e.preventDefault();
               navigate({ to: "/explore", search: q.trim() ? { q: q.trim() } : {} });
             }}
-            className="mt-8 flex max-w-xl items-center gap-2 rounded-2xl border bg-card p-1.5 shadow-card focus-within:ring-2 focus-within:ring-ring"
+            className="mt-7 flex max-w-xl items-center gap-2 rounded-md bg-card p-1.5 shadow-lift focus-within:ring-2 focus-within:ring-gold"
           >
-            <Search className="ml-3 size-5 shrink-0 text-muted-foreground" aria-hidden />
+            <Search className="ml-2.5 size-5 shrink-0 text-muted-foreground" aria-hidden />
             <label htmlFor="hero-search" className="sr-only">{t("hero.search")}</label>
             <input
               id="hero-search"
@@ -93,18 +120,18 @@ function Hero() {
               placeholder={t("hero.search")}
               className="h-11 min-w-0 flex-1 bg-transparent text-[0.95rem] text-foreground outline-none placeholder:text-muted-foreground"
             />
-            <Button type="submit" size="default" className="h-11 shrink-0 px-4" aria-label="Search">
+            <Button type="submit" className="h-11 shrink-0 rounded px-4" aria-label="Search">
               <ArrowRight />
             </Button>
           </form>
           <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
-            <span className="text-muted-foreground">{t("hero.popular")}</span>
+            <span className="text-navy-foreground/70">{t("hero.popular")}</span>
             {popular.map((p) => (
               <Link
                 key={p}
                 to="/explore"
                 search={{ q: p.split(" ")[0] }}
-                className="rounded-full border bg-card px-3 py-1 text-xs font-medium text-foreground transition-colors hover:border-gold hover:text-foreground"
+                className="rounded border border-navy-foreground/25 px-2.5 py-1 text-xs font-medium text-navy-foreground transition-colors hover:border-gold hover:text-gold"
               >
                 {p}
               </Link>
@@ -112,66 +139,141 @@ function Hero() {
           </div>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Button asChild size="lg" variant="default">
-              <Link to="/explore">
-                {t("hero.cta.explore")} <ArrowRight />
-              </Link>
+            <Button asChild size="lg" variant="gold" className="rounded">
+              <Link to="/explore">{t("hero.cta.explore")} <ArrowRight /></Link>
             </Button>
-            <Button asChild size="lg" variant="outline">
+            <Button asChild size="lg" variant="onNavy" className="rounded">
               <Link to="/auth" search={{ mode: "join" }}>{t("hero.cta.join")}</Link>
             </Button>
           </div>
         </div>
 
-        {/* Visual */}
-        <div className="relative animate-fade-up [animation-delay:120ms]">
-          <div className="absolute -inset-4 -z-10 rounded-[2.5rem] bg-navy-gradient opacity-[0.07] blur-2xl dark:opacity-40" />
-          <div className="relative overflow-hidden rounded-[1.75rem] border bg-muted shadow-lift">
-            <img src={heroImg} alt="Tanzanian innovators collaborating on a solar prototype" width={1600} height={1200} className="aspect-[4/3.6] w-full object-cover sm:aspect-[4/3.4]" />
-            <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-navy/80 to-transparent" />
-            <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-3 text-navy-foreground">
-              <div className="min-w-0">
-                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-gold">Dar es Salaam</p>
-                <p className="mt-1 truncate font-display text-sm font-semibold sm:text-base">Buni pamoja · Build together</p>
-              </div>
-              <div className="flex shrink-0 -space-x-2">
-                {innovators.slice(0, 4).map((p) => (
-                  <Avatar key={p.slug} name={p.name} photo={p.photo} className="size-8 rounded-full border-2 border-navy text-[0.6rem]" />
-                ))}
-              </div>
-            </div>
+        {/* Slider controls */}
+        <div className="absolute bottom-6 left-5 right-5 flex items-center justify-between gap-4 sm:left-8 sm:right-8">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="hidden h-px w-8 bg-gold sm:block" />
+            <a href={current.source} target="_blank" rel="noreferrer" className="truncate text-xs text-navy-foreground/80 hover:text-navy-foreground" aria-live="polite">
+              <MapPin className="mr-1 inline size-3.5 text-gold" />
+              {current.place} <span className="text-navy-foreground/50">· {t("photo.credit")}: {current.credit}, {current.license}</span>
+            </a>
           </div>
-
-          {/* Floating: piloting project */}
-          <Link
-            to="/innovations/$slug"
-            params={{ slug: piloting.slug }}
-            className="absolute -left-2 top-6 hidden w-60 rounded-2xl border bg-card/95 p-3 shadow-lift backdrop-blur transition-transform hover:-translate-y-0.5 sm:block lg:-left-10"
-          >
-            <div className="flex items-center gap-3">
-              <img src={piloting.image} alt="" width={1200} height={800} className="size-11 rounded-xl object-cover" />
-              <div className="min-w-0">
-                <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-success">● {t("hero.card.live")}</p>
-                <p className="truncate text-sm font-semibold text-foreground">{piloting.title}</p>
-                <p className="truncate text-xs text-muted-foreground">{piloting.region}</p>
-              </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <div className="hidden items-center gap-1.5 sm:flex">
+              {slides.map((p, i) => (
+                <button
+                  key={p.src}
+                  type="button"
+                  onClick={() => setIdx(i)}
+                  aria-label={`Slide ${i + 1}: ${p.place}`}
+                  aria-current={i === idx}
+                  className={cn("h-1.5 rounded-full transition-all", i === idx ? "w-7 bg-gold" : "w-3 bg-navy-foreground/40 hover:bg-navy-foreground/70")}
+                />
+              ))}
             </div>
-          </Link>
-
-          {/* Floating: collaboration */}
-          <div className="absolute -bottom-6 right-3 w-64 rounded-2xl border bg-card/95 p-3.5 shadow-lift backdrop-blur sm:-right-4 lg:-right-8">
-            <div className="flex items-center gap-2 text-xs font-semibold text-azure">
-              <Handshake className="size-4" /> {t("hero.card.collab")}
-            </div>
-            <div className="mt-2.5 flex items-center gap-2.5">
-              <Avatar name={innovators[2].name} photo={innovators[2].photo} className="size-8 shrink-0 rounded-full" />
-              <p className="min-w-0 text-xs leading-snug text-muted-foreground">
-                <span className="font-semibold text-foreground">{innovators[2].name}</span> → AfyaLink
-              </p>
-            </div>
+            <button type="button" onClick={() => go(-1)} aria-label="Previous slide" className="grid size-9 place-items-center rounded border border-navy-foreground/25 hover:border-gold hover:text-gold">
+              <ChevronLeft className="size-4" />
+            </button>
+            <button type="button" onClick={() => go(1)} aria-label="Next slide" className="grid size-9 place-items-center rounded border border-navy-foreground/25 hover:border-gold hover:text-gold">
+              <ChevronRight className="size-4" />
+            </button>
           </div>
         </div>
       </div>
+    </section>
+  );
+}
+
+function QuickLinks() {
+  const { t } = usePrefs();
+  const items = [
+    { to: "/explore" as const, icon: Lightbulb, title: t("nav.explore"), body: t("quick.explore") },
+    { to: "/innovators" as const, icon: Users, title: t("nav.innovators"), body: t("quick.innovators") },
+    { to: "/institutions" as const, icon: Building2, title: t("nav.institutions"), body: t("quick.institutions") },
+    { to: "/opportunities" as const, icon: Rocket, title: t("nav.opportunities"), body: t("quick.opportunities") },
+  ];
+  return (
+    <section aria-label={t("quick.title")} className="container-tie relative z-10 -mt-10 sm:-mt-12">
+      <div className="grid grid-cols-2 overflow-hidden rounded-lg border bg-card shadow-lift lg:grid-cols-4">
+        {items.map((x, i) => (
+          <Link
+            key={x.to}
+            to={x.to}
+            className={cn(
+              "group flex flex-col gap-3 border-t-4 border-t-transparent p-4 transition-colors hover:border-t-gold hover:bg-secondary sm:flex-row sm:items-start sm:p-6",
+              i % 2 === 1 && "border-l",
+              i >= 2 && "border-t-border lg:border-t-transparent",
+              i === 2 && "lg:border-l",
+            )}
+          >
+            <span className="grid size-11 shrink-0 place-items-center rounded-md bg-navy text-navy-foreground transition-colors group-hover:bg-gold group-hover:text-gold-foreground">
+              <x.icon className="size-5" />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-bold text-foreground sm:text-[0.95rem]">{x.title}</span>
+              <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">{x.body}</span>
+            </span>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function NewsAndAnnouncements({ onOpen }: { onOpen: (o: Opportunity) => void }) {
+  const { t, lang } = usePrefs();
+  const catLabel = useCategoryLabel();
+  const latest = [...innovations].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt)).slice(0, 4);
+  const upcoming = [...opportunities].filter((o) => daysUntil(o.deadline) >= 0).sort((a, b) => a.deadline.localeCompare(b.deadline)).slice(0, 5);
+  const fmtDate = (d: string, opts: Intl.DateTimeFormatOptions) => new Date(d).toLocaleDateString(lang === "sw" ? "sw-TZ" : "en-GB", opts);
+  return (
+    <section className="container-tie grid gap-8 pt-16 sm:pt-20 lg:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="min-w-0">
+        <div className="mb-5 flex items-end justify-between gap-4 border-b-2 border-primary pb-3">
+          <h2 className="text-xl font-bold uppercase tracking-wide text-foreground">{lang === "sw" ? "Ubunifu mpya" : "Latest innovations"}</h2>
+          <Link to="/explore" className="shrink-0 text-sm font-semibold text-azure hover:underline">{t("common.viewAll")} →</Link>
+        </div>
+        <ul className="divide-y">
+          {latest.map((i) => (
+            <li key={i.slug}>
+              <Link to="/innovations/$slug" params={{ slug: i.slug }} className="group grid grid-cols-[96px_minmax(0,1fr)] gap-4 py-4 sm:grid-cols-[160px_minmax(0,1fr)]">
+                <img src={i.image} alt="" width={1200} height={800} loading="lazy" className="aspect-[4/3] w-full rounded-md object-cover" />
+                <div className="min-w-0">
+                  <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1 font-semibold text-azure"><CategoryIcon id={i.category} className="size-3.5" />{catLabel(i.category)}</span>
+                    <span>· {fmtDate(i.publishedAt, { day: "numeric", month: "short", year: "numeric" })}</span>
+                  </p>
+                  <h3 className="mt-1 font-semibold text-foreground group-hover:text-azure group-hover:underline sm:text-lg">{i.title}</h3>
+                  <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{i.tagline}</p>
+                </div>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <aside className="self-start overflow-hidden rounded-lg border bg-card shadow-card">
+        <div className="flex items-center justify-between bg-primary px-5 py-3.5 text-primary-foreground dark:bg-navy dark:text-navy-foreground">
+          <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider"><Megaphone className="size-4 text-gold" /> {t("ann.title")}</h2>
+        </div>
+        <ul className="divide-y">
+          {upcoming.map((o) => (
+            <li key={o.id}>
+              <button type="button" onClick={() => onOpen(o)} className="group flex w-full gap-4 px-5 py-4 text-left transition-colors hover:bg-secondary">
+                <span className="grid w-12 shrink-0 place-items-center rounded-md border-t-4 border-gold bg-surface py-1.5 text-center leading-none">
+                  <span className="font-display text-lg font-bold text-foreground">{fmtDate(o.deadline, { day: "numeric" })}</span>
+                  <span className="mt-0.5 text-[0.6rem] font-bold uppercase text-muted-foreground">{fmtDate(o.deadline, { month: "short" })}</span>
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[0.65rem] font-bold uppercase tracking-wider text-azure">{o.type}</span>
+                  <span className="mt-0.5 block text-sm font-semibold leading-snug text-foreground group-hover:underline">{o.title}</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">{daysUntil(o.deadline)} {t("common.daysLeft")}</span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        <Link to="/opportunities" className="block border-t px-5 py-3 text-center text-sm font-semibold text-azure hover:bg-secondary">{t("ann.all")} →</Link>
+      </aside>
     </section>
   );
 }
@@ -221,7 +323,7 @@ function Featured() {
       <Link
         to="/innovations/$slug"
         params={{ slug: spot.slug }}
-        className="group card-interactive grid overflow-hidden rounded-3xl border bg-card shadow-card md:grid-cols-[1.15fr_1fr]"
+        className="group card-interactive grid overflow-hidden rounded-lg border bg-card shadow-card md:grid-cols-[1.15fr_1fr]"
       >
         <div className="relative aspect-[16/10] overflow-hidden md:aspect-auto">
           <img src={spot.image} alt={spot.title} width={1200} height={800} loading="lazy" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]" />
@@ -308,7 +410,7 @@ function Trending() {
           </Button>
         }
       />
-      <div className="grid gap-x-8 gap-y-1 rounded-3xl border bg-card p-3 shadow-card md:grid-cols-2 sm:p-4">
+      <div className="grid gap-x-8 gap-y-1 rounded-lg border bg-card p-3 shadow-card md:grid-cols-2 sm:p-4">
         {trending.map((i, idx) => (
           <TrendingRow key={i.slug} item={i} rank={idx + 1} />
         ))}
@@ -423,7 +525,7 @@ function JoinCta() {
   const { t } = usePrefs();
   return (
     <section className="container-tie py-16 sm:py-24">
-      <div className="relative overflow-hidden rounded-[2rem] bg-navy-gradient px-6 py-12 text-navy-foreground sm:px-12 sm:py-16">
+      <div className="relative overflow-hidden rounded-lg bg-navy-gradient px-6 py-12 text-navy-foreground sm:px-12 sm:py-16">
         <div className="pointer-events-none absolute inset-0 bg-grid opacity-60 [mask-image:linear-gradient(to_left,black,transparent)]" />
         <div className="absolute inset-x-0 top-0 h-1 flag-stripe" aria-hidden />
         <div className="relative grid gap-8 lg:grid-cols-[1.4fr_1fr] lg:items-center">

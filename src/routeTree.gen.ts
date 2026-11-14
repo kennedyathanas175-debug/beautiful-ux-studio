@@ -10,7 +10,11 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AboutRouteImport } from './routes/about'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ExploreRouteImport } from './routes/explore'
+import { Route as InstitutionsRouteImport } from './routes/institutions'
+import { Route as OpportunitiesRouteImport } from './routes/opportunities'
 import { Route as InnovationsSlugRouteImport } from './routes/innovations.$slug'
 import { Route as InnovatorsIndexRouteImport } from './routes/innovators.index'
 import { Route as InnovatorsSlugRouteImport } from './routes/innovators.$slug'
@@ -20,9 +24,29 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ExploreRoute = ExploreRouteImport.update({
   id: '/explore',
   path: '/explore',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InstitutionsRoute = InstitutionsRouteImport.update({
+  id: '/institutions',
+  path: '/institutions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OpportunitiesRoute = OpportunitiesRouteImport.update({
+  id: '/opportunities',
+  path: '/opportunities',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InnovationsSlugRoute = InnovationsSlugRouteImport.update({
@@ -43,14 +67,22 @@ const InnovatorsSlugRoute = InnovatorsSlugRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/auth': typeof AuthRoute
   '/explore': typeof ExploreRoute
+  '/institutions': typeof InstitutionsRoute
+  '/opportunities': typeof OpportunitiesRoute
   '/innovations/$slug': typeof InnovationsSlugRoute
   '/innovators/$slug': typeof InnovatorsSlugRoute
   '/innovators/': typeof InnovatorsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/auth': typeof AuthRoute
   '/explore': typeof ExploreRoute
+  '/institutions': typeof InstitutionsRoute
+  '/opportunities': typeof OpportunitiesRoute
   '/innovations/$slug': typeof InnovationsSlugRoute
   '/innovators/$slug': typeof InnovatorsSlugRoute
   '/innovators': typeof InnovatorsIndexRoute
@@ -58,7 +90,11 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/auth': typeof AuthRoute
   '/explore': typeof ExploreRoute
+  '/institutions': typeof InstitutionsRoute
+  '/opportunities': typeof OpportunitiesRoute
   '/innovations/$slug': typeof InnovationsSlugRoute
   '/innovators/$slug': typeof InnovatorsSlugRoute
   '/innovators/': typeof InnovatorsIndexRoute
@@ -67,21 +103,33 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/about'
+    | '/auth'
     | '/explore'
+    | '/institutions'
+    | '/opportunities'
     | '/innovations/$slug'
     | '/innovators/$slug'
     | '/innovators/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/about'
+    | '/auth'
     | '/explore'
+    | '/institutions'
+    | '/opportunities'
     | '/innovations/$slug'
     | '/innovators/$slug'
     | '/innovators'
   id:
     | '__root__'
     | '/'
+    | '/about'
+    | '/auth'
     | '/explore'
+    | '/institutions'
+    | '/opportunities'
     | '/innovations/$slug'
     | '/innovators/$slug'
     | '/innovators/'
@@ -89,7 +137,11 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AboutRoute: typeof AboutRoute
+  AuthRoute: typeof AuthRoute
   ExploreRoute: typeof ExploreRoute
+  InstitutionsRoute: typeof InstitutionsRoute
+  OpportunitiesRoute: typeof OpportunitiesRoute
   InnovationsSlugRoute: typeof InnovationsSlugRoute
   InnovatorsSlugRoute: typeof InnovatorsSlugRoute
   InnovatorsIndexRoute: typeof InnovatorsIndexRoute
@@ -104,11 +156,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/explore': {
       id: '/explore'
       path: '/explore'
       fullPath: '/explore'
       preLoaderRoute: typeof ExploreRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/institutions': {
+      id: '/institutions'
+      path: '/institutions'
+      fullPath: '/institutions'
+      preLoaderRoute: typeof InstitutionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/opportunities': {
+      id: '/opportunities'
+      path: '/opportunities'
+      fullPath: '/opportunities'
+      preLoaderRoute: typeof OpportunitiesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/innovations/$slug': {
@@ -137,7 +217,11 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AboutRoute: AboutRoute,
+  AuthRoute: AuthRoute,
   ExploreRoute: ExploreRoute,
+  InstitutionsRoute: InstitutionsRoute,
+  OpportunitiesRoute: OpportunitiesRoute,
   InnovationsSlugRoute: InnovationsSlugRoute,
   InnovatorsSlugRoute: InnovatorsSlugRoute,
   InnovatorsIndexRoute: InnovatorsIndexRoute,

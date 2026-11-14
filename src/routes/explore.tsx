@@ -7,6 +7,7 @@ import { usePrefs } from "@/lib/prefs";
 import { cn } from "@/lib/utils";
 import { CategoryIcon, PageIntro } from "@/components/site/bits";
 import { InnovationCard } from "@/components/site/cards";
+import { photos } from "@/data/photos";
 
 type Sort = "latest" | "popular" | "discussed";
 interface ExploreSearch {
@@ -87,7 +88,7 @@ function ExplorePage() {
 
   return (
     <>
-      <PageIntro eyebrow="TIE" title={t("explore.title")} body={t("explore.body")}>
+      <PageIntro eyebrow={t("nav.explore")} title={t("explore.title")} body={t("explore.body")} photo={photos.kilimanjaro}>
         <div className="mt-8 flex max-w-2xl items-center gap-2 rounded-2xl border bg-background p-1.5 shadow-card focus-within:ring-2 focus-within:ring-ring">
           <Search className="ml-3 size-5 shrink-0 text-muted-foreground" aria-hidden />
           <label htmlFor="explore-q" className="sr-only">{t("explore.search")}</label>

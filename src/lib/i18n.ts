@@ -1,6 +1,20 @@
 export type Lang = "en" | "sw";
 
 const en = {
+  "mast.top": "Tanzania · National Innovation Platform",
+  "mast.title": "Tanzania Innovation Ecosystem",
+  "mast.sub": "Connecting Ideas. Building Innovations. Transforming Tanzania.",
+  "util.welcome": "Welcome to the TIE portal",
+  "quick.title": "Quick links",
+  "quick.explore": "Discover innovations from every region",
+  "quick.innovators": "Find people to build with",
+  "quick.institutions": "Universities, hubs & agencies",
+  "quick.opportunities": "Grants, challenges & programs",
+  "quick.join": "Create your innovator profile",
+  "ann.title": "Announcements",
+  "ann.all": "All opportunities",
+  "breadcrumb.home": "Home",
+  "photo.credit": "Photo",
   "nav.home": "Home",
   "nav.explore": "Explore Innovations",
   "nav.innovators": "Innovators",
@@ -106,6 +120,20 @@ const en = {
 export type TKey = keyof typeof en;
 
 const sw: Record<TKey, string> = {
+  "mast.top": "Tanzania · Jukwaa la Kitaifa la Ubunifu",
+  "mast.title": "Mfumo wa Ubunifu Tanzania",
+  "mast.sub": "Kuunganisha Mawazo. Kujenga Ubunifu. Kubadilisha Tanzania.",
+  "util.welcome": "Karibu kwenye tovuti ya TIE",
+  "quick.title": "Viungo vya haraka",
+  "quick.explore": "Gundua ubunifu kutoka kila mkoa",
+  "quick.innovators": "Pata watu wa kushirikiana nao",
+  "quick.institutions": "Vyuo, vituo vya ubunifu na taasisi",
+  "quick.opportunities": "Ruzuku, changamoto na programu",
+  "quick.join": "Fungua wasifu wako wa mbunifu",
+  "ann.title": "Matangazo",
+  "ann.all": "Fursa zote",
+  "breadcrumb.home": "Nyumbani",
+  "photo.credit": "Picha",
   "nav.home": "Nyumbani",
   "nav.explore": "Gundua Ubunifu",
   "nav.innovators": "Wabunifu",

@@ -6,6 +6,7 @@ import { usePrefs } from "@/lib/prefs";
 import { cn } from "@/lib/utils";
 import { PageIntro } from "@/components/site/bits";
 import { InnovatorCard } from "@/components/site/cards";
+import { photos } from "@/data/photos";
 
 export const Route = createFileRoute("/innovators/")({
   head: () => ({
@@ -36,7 +37,7 @@ function InnovatorsPage() {
 
   return (
     <>
-      <PageIntro eyebrow="TIE" title={t("nav.innovators")} body={t("sec.innovators.body")}>
+      <PageIntro eyebrow={t("nav.innovators")} title={t("nav.innovators")} body={t("sec.innovators.body")} photo={photos.arusha}>
         <div className="mt-8 flex max-w-xl items-center gap-2 rounded-2xl border bg-background p-1.5 shadow-card focus-within:ring-2 focus-within:ring-ring">
           <Search className="ml-3 size-5 shrink-0 text-muted-foreground" aria-hidden />
           <label htmlFor="inn-q" className="sr-only">Search innovators</label>

@@ -1,5 +1,8 @@
 import { Sprout, HeartPulse, Sun, Wallet, GraduationCap, Leaf, Truck, Cpu, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { Link } from "@tanstack/react-router";
+import { ChevronRight } from "lucide-react";
+import { photos, type Photo } from "@/data/photos";
 import { Badge } from "@/components/ui/badge";
 import { categories, type CategoryId, type Stage } from "@/data/catalog";
 import { usePrefs } from "@/lib/prefs";
@@ -93,16 +96,49 @@ export function Avatar({ name, photo, className }: { name: string; photo?: strin
   );
 }
 
-export function PageIntro({ eyebrow, title, body, children }: { eyebrow: string; title: string; body: string; children?: ReactNode }) {
+export function PageIntro({
+  eyebrow,
+  title,
+  body,
+  children,
+  photo = photos.darDusk,
+}: {
+  eyebrow: string;
+  title: string;
+  body: string;
+  children?: ReactNode;
+  photo?: Photo;
+}) {
+  const { t } = usePrefs();
   return (
-    <section className="relative overflow-hidden border-b bg-card">
-      <div className="pointer-events-none absolute inset-0 bg-dots opacity-60 [mask-image:linear-gradient(to_bottom,black,transparent)]" />
-      <div className="container-tie relative py-12 sm:py-16">
-        <p className="eyebrow">{eyebrow}</p>
-        <h1 className="mt-2 max-w-3xl text-3xl font-bold text-foreground sm:text-5xl sm:leading-[1.05]">{title}</h1>
-        <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">{body}</p>
+    <section className="relative overflow-hidden bg-navy text-navy-foreground">
+      <img src={photo.src} alt="" className="absolute inset-0 h-full w-full object-cover" />
+      <div className="absolute inset-0 bg-gradient-to-r from-navy via-navy/90 to-navy/55" />
+      <div className="container-tie relative py-10 sm:py-14">
+        <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-navy-foreground/75">
+          <Link to="/" className="hover:text-navy-foreground hover:underline">{t("breadcrumb.home")}</Link>
+          <ChevronRight className="size-3.5" />
+          <span className="font-semibold text-gold">{eyebrow}</span>
+        </nav>
+        <h1 className="mt-3 max-w-3xl text-3xl font-bold sm:text-5xl sm:leading-[1.05]">{title}</h1>
+        <p className="mt-4 max-w-2xl text-base leading-relaxed text-navy-foreground/80 sm:text-lg">{body}</p>
         {children}
       </div>
+      <PhotoCredit photo={photo} />
     </section>
+  );
+}
+
+export function PhotoCredit({ photo, className }: { photo: Photo; className?: string }) {
+  const { t } = usePrefs();
+  return (
+    <a
+      href={photo.source}
+      target="_blank"
+      rel="noreferrer"
+      className={cn("absolute bottom-1.5 right-2 z-10 rounded bg-navy/60 px-1.5 py-0.5 text-[0.6rem] text-navy-foreground/75 backdrop-blur hover:text-navy-foreground", className)}
+    >
+      {t("photo.credit")}: {photo.place} · {photo.credit}, {photo.license}
+    </a>
   );
 }
