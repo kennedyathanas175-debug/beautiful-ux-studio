@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { translate, type Lang, type TKey } from "./i18n";
 
 type Theme = "light" | "dark";
@@ -63,15 +71,16 @@ export function PrefsProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const makeToggle = (key: string, setter: typeof setLiked, current: Set<string>) => (id: string) => {
-    const next = new Set(current);
-    const on = !next.has(id);
-    if (on) next.add(id);
-    else next.delete(id);
-    setter(next);
-    window.localStorage.setItem(key, JSON.stringify([...next]));
-    return on;
-  };
+  const makeToggle =
+    (key: string, setter: typeof setLiked, current: Set<string>) => (id: string) => {
+      const next = new Set(current);
+      const on = !next.has(id);
+      if (on) next.add(id);
+      else next.delete(id);
+      setter(next);
+      window.localStorage.setItem(key, JSON.stringify([...next]));
+      return on;
+    };
 
   const value = useMemo<PrefsValue>(
     () => ({

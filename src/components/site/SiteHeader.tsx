@@ -1,13 +1,38 @@
-import { Link } from "@tanstack/react-router";
-import { Menu, Moon, Sun, Mail, MapPin, LogIn, UserPlus } from "lucide-react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import {
+  Menu,
+  Moon,
+  Sun,
+  Mail,
+  MapPin,
+  LogIn,
+  UserPlus,
+  LayoutDashboard,
+  LogOut,
+  Bookmark,
+  ShieldCheck,
+  Handshake,
+  Bell,
+  UserRound,
+} from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger, SheetClose } from "@/components/ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { usePrefs } from "@/lib/prefs";
+import { useAuth } from "@/lib/auth";
 import type { TKey } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
-import mark from "@/assets/tie-logo-mark.png.asset.json";
 import { TanzaniaFlag } from "./Flag";
+import { Avatar } from "./bits";
 
 const links: {
   to: "/" | "/explore" | "/innovators" | "/institutions" | "/opportunities" | "/about";
@@ -69,8 +94,99 @@ function Today() {
   return <span suppressHydrationWarning>{text}</span>;
 }
 
+function UserMenu() {
+  const { user, logout } = useAuth();
+  const { t } = usePrefs();
+  const navigate = useNavigate();
+
+  if (!user) return null;
+
+  const signOut = async () => {
+    await logout();
+    toast.success("Signed out");
+    void navigate({ to: "/" });
+  };
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="flex items-center gap-2 rounded-md px-1.5 py-1 text-left transition-colors hover:bg-navy-foreground/10"
+          aria-label="Account menu"
+        >
+          <Avatar
+            name={user.name}
+            photo={user.photo ?? undefined}
+            className="size-7 rounded-full text-[0.65rem]"
+          />
+          <span className="hidden max-w-28 truncate text-[0.8rem] font-semibold xl:inline">
+            {user.name}
+          </span>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel className="font-normal">
+          <p className="truncate text-sm font-semibold">{user.name}</p>
+          <p className="truncate text-xs text-muted-foreground">
+            {user.headline || user.roleLabel}
+          </p>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link to="/dashboard">
+            <LayoutDashboard /> {t("nav.dashboard")}
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link to="/dashboard/profile">
+            <UserRound /> Profile
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link to="/dashboard/saved">
+            <Bookmark /> Saved
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link to="/dashboard/requests">
+            <Handshake /> Collaboration requests
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link to="/dashboard/notifications">
+            <Bell /> Notifications
+          </Link>
+        </DropdownMenuItem>
+        {user.isStaff && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link to="/moderation">
+                <ShieldCheck /> Moderation
+              </Link>
+            </DropdownMenuItem>
+          </>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => void signOut()}>
+          <LogOut /> Sign out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export function SiteHeader() {
   const { t, theme, toggleTheme } = usePrefs();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const signOut = async () => {
+    await logout();
+    toast.success("Signed out");
+    void navigate({ to: "/" });
+  };
 
   return (
     <>
@@ -113,7 +229,7 @@ export function SiteHeader() {
               className="grid shrink-0 place-items-center rounded-md bg-logo-plate dark:p-1"
             >
               <img
-                src={mark.url}
+                src={"/images/tie-logo-mark.png"}
                 alt="TIE logo"
                 width={400}
                 height={209}
@@ -168,22 +284,48 @@ export function SiteHeader() {
                   </nav>
                   <div className="mt-auto space-y-3 border-t p-5">
                     <LangSwitch tone="light" className="w-full justify-center gap-2" />
-                    <div className="grid grid-cols-2 gap-2">
-                      <SheetClose asChild>
-                        <Button asChild variant="outline">
-                          <Link to="/auth" search={{ mode: "login" }}>
-                            {t("nav.login")}
-                          </Link>
-                        </Button>
-                      </SheetClose>
-                      <SheetClose asChild>
-                        <Button asChild>
-                          <Link to="/auth" search={{ mode: "join" }}>
-                            {t("nav.join")}
-                          </Link>
-                        </Button>
-                      </SheetClose>
-                    </div>
+                    {user ? (
+                      <div className="grid gap-2">
+                        <SheetClose asChild>
+                          <Button asChild>
+                            <Link to="/dashboard">
+                              <LayoutDashboard /> {t("nav.dashboard")}
+                            </Link>
+                          </Button>
+                        </SheetClose>
+                        {user.isStaff && (
+                          <SheetClose asChild>
+                            <Button asChild variant="outline">
+                              <Link to="/moderation">
+                                <ShieldCheck /> Moderation
+                              </Link>
+                            </Button>
+                          </SheetClose>
+                        )}
+                        <SheetClose asChild>
+                          <Button variant="ghost" onClick={() => void signOut()}>
+                            <LogOut /> Sign out
+                          </Button>
+                        </SheetClose>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2">
+                        <SheetClose asChild>
+                          <Button asChild variant="outline">
+                            <Link to="/auth" search={{ mode: "login" }}>
+                              {t("nav.login")}
+                            </Link>
+                          </Button>
+                        </SheetClose>
+                        <SheetClose asChild>
+                          <Button asChild>
+                            <Link to="/auth" search={{ mode: "join" }}>
+                              {t("nav.join")}
+                            </Link>
+                          </Button>
+                        </SheetClose>
+                      </div>
+                    )}
                   </div>
                 </SheetContent>
               </Sheet>
@@ -208,18 +350,24 @@ export function SiteHeader() {
               ))}
             </nav>
             <div className="flex items-center gap-2">
-              <Link
-                to="/auth"
-                search={{ mode: "login" }}
-                className="inline-flex items-center gap-1.5 px-3 text-[0.8rem] font-semibold opacity-90 hover:opacity-100"
-              >
-                <LogIn className="size-4" /> {t("nav.login")}
-              </Link>
-              <Button asChild variant="gold" size="sm" className="rounded">
-                <Link to="/auth" search={{ mode: "join" }}>
-                  <UserPlus /> {t("nav.join")}
-                </Link>
-              </Button>
+              {user ? (
+                <UserMenu />
+              ) : (
+                <>
+                  <Link
+                    to="/auth"
+                    search={{ mode: "login" }}
+                    className="inline-flex items-center gap-1.5 px-3 text-[0.8rem] font-semibold opacity-90 hover:opacity-100"
+                  >
+                    <LogIn className="size-4" /> {t("nav.login")}
+                  </Link>
+                  <Button asChild variant="gold" size="sm" className="rounded">
+                    <Link to="/auth" search={{ mode: "join" }}>
+                      <UserPlus /> {t("nav.join")}
+                    </Link>
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>

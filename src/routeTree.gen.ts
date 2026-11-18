@@ -12,12 +12,25 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as InstitutionsRouteImport } from './routes/institutions'
+import { Route as ModerationRouteImport } from './routes/moderation'
 import { Route as OpportunitiesRouteImport } from './routes/opportunities'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
+import { Route as DashboardApplicationsRouteImport } from './routes/dashboard.applications'
+import { Route as DashboardInnovationsRouteImport } from './routes/dashboard.innovations'
+import { Route as DashboardNotificationsRouteImport } from './routes/dashboard.notifications'
+import { Route as DashboardProfileRouteImport } from './routes/dashboard.profile'
+import { Route as DashboardRequestsRouteImport } from './routes/dashboard.requests'
+import { Route as DashboardSavedRouteImport } from './routes/dashboard.saved'
 import { Route as InnovationsSlugRouteImport } from './routes/innovations.$slug'
 import { Route as InnovatorsIndexRouteImport } from './routes/innovators.index'
 import { Route as InnovatorsSlugRouteImport } from './routes/innovators.$slug'
+import { Route as DashboardInnovationsIndexRouteImport } from './routes/dashboard.innovations.index'
+import { Route as DashboardInnovationsNewRouteImport } from './routes/dashboard.innovations.new'
+import { Route as DashboardInnovationsSlugEditRouteImport } from './routes/dashboard.innovations.$slug.edit'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,6 +47,11 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ExploreRoute = ExploreRouteImport.update({
   id: '/explore',
   path: '/explore',
@@ -44,10 +62,55 @@ const InstitutionsRoute = InstitutionsRouteImport.update({
   path: '/institutions',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ModerationRoute = ModerationRouteImport.update({
+  id: '/moderation',
+  path: '/moderation',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OpportunitiesRoute = OpportunitiesRouteImport.update({
   id: '/opportunities',
   path: '/opportunities',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardIndexRoute = DashboardIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardApplicationsRoute = DashboardApplicationsRouteImport.update({
+  id: '/applications',
+  path: '/applications',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardInnovationsRoute = DashboardInnovationsRouteImport.update({
+  id: '/innovations',
+  path: '/innovations',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardNotificationsRoute = DashboardNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardProfileRoute = DashboardProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardRequestsRoute = DashboardRequestsRouteImport.update({
+  id: '/requests',
+  path: '/requests',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardSavedRoute = DashboardSavedRouteImport.update({
+  id: '/saved',
+  path: '/saved',
+  getParentRoute: () => DashboardRoute,
 } as any)
 const InnovationsSlugRoute = InnovationsSlugRouteImport.update({
   id: '/innovations/$slug',
@@ -64,17 +127,47 @@ const InnovatorsSlugRoute = InnovatorsSlugRouteImport.update({
   path: '/innovators/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardInnovationsIndexRoute =
+  DashboardInnovationsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => DashboardInnovationsRoute,
+  } as any)
+const DashboardInnovationsNewRoute = DashboardInnovationsNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => DashboardInnovationsRoute,
+} as any)
+const DashboardInnovationsSlugEditRoute =
+  DashboardInnovationsSlugEditRouteImport.update({
+    id: '/$slug/edit',
+    path: '/$slug/edit',
+    getParentRoute: () => DashboardInnovationsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
+  '/dashboard': typeof DashboardRouteWithChildren
   '/explore': typeof ExploreRoute
   '/institutions': typeof InstitutionsRoute
+  '/moderation': typeof ModerationRoute
   '/opportunities': typeof OpportunitiesRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/dashboard/applications': typeof DashboardApplicationsRoute
+  '/dashboard/innovations': typeof DashboardInnovationsRouteWithChildren
+  '/dashboard/notifications': typeof DashboardNotificationsRoute
+  '/dashboard/profile': typeof DashboardProfileRoute
+  '/dashboard/requests': typeof DashboardRequestsRoute
+  '/dashboard/saved': typeof DashboardSavedRoute
   '/innovations/$slug': typeof InnovationsSlugRoute
   '/innovators/$slug': typeof InnovatorsSlugRoute
+  '/dashboard/': typeof DashboardIndexRoute
   '/innovators/': typeof InnovatorsIndexRoute
+  '/dashboard/innovations/new': typeof DashboardInnovationsNewRoute
+  '/dashboard/innovations/': typeof DashboardInnovationsIndexRoute
+  '/dashboard/innovations/$slug/edit': typeof DashboardInnovationsSlugEditRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -82,22 +175,46 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/explore': typeof ExploreRoute
   '/institutions': typeof InstitutionsRoute
+  '/moderation': typeof ModerationRoute
   '/opportunities': typeof OpportunitiesRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/dashboard/applications': typeof DashboardApplicationsRoute
+  '/dashboard/notifications': typeof DashboardNotificationsRoute
+  '/dashboard/profile': typeof DashboardProfileRoute
+  '/dashboard/requests': typeof DashboardRequestsRoute
+  '/dashboard/saved': typeof DashboardSavedRoute
   '/innovations/$slug': typeof InnovationsSlugRoute
   '/innovators/$slug': typeof InnovatorsSlugRoute
+  '/dashboard': typeof DashboardIndexRoute
   '/innovators': typeof InnovatorsIndexRoute
+  '/dashboard/innovations/new': typeof DashboardInnovationsNewRoute
+  '/dashboard/innovations': typeof DashboardInnovationsIndexRoute
+  '/dashboard/innovations/$slug/edit': typeof DashboardInnovationsSlugEditRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
+  '/dashboard': typeof DashboardRouteWithChildren
   '/explore': typeof ExploreRoute
   '/institutions': typeof InstitutionsRoute
+  '/moderation': typeof ModerationRoute
   '/opportunities': typeof OpportunitiesRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/dashboard/applications': typeof DashboardApplicationsRoute
+  '/dashboard/innovations': typeof DashboardInnovationsRouteWithChildren
+  '/dashboard/notifications': typeof DashboardNotificationsRoute
+  '/dashboard/profile': typeof DashboardProfileRoute
+  '/dashboard/requests': typeof DashboardRequestsRoute
+  '/dashboard/saved': typeof DashboardSavedRoute
   '/innovations/$slug': typeof InnovationsSlugRoute
   '/innovators/$slug': typeof InnovatorsSlugRoute
+  '/dashboard/': typeof DashboardIndexRoute
   '/innovators/': typeof InnovatorsIndexRoute
+  '/dashboard/innovations/new': typeof DashboardInnovationsNewRoute
+  '/dashboard/innovations/': typeof DashboardInnovationsIndexRoute
+  '/dashboard/innovations/$slug/edit': typeof DashboardInnovationsSlugEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -105,12 +222,25 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/auth'
+    | '/dashboard'
     | '/explore'
     | '/institutions'
+    | '/moderation'
     | '/opportunities'
+    | '/reset-password'
+    | '/dashboard/applications'
+    | '/dashboard/innovations'
+    | '/dashboard/notifications'
+    | '/dashboard/profile'
+    | '/dashboard/requests'
+    | '/dashboard/saved'
     | '/innovations/$slug'
     | '/innovators/$slug'
+    | '/dashboard/'
     | '/innovators/'
+    | '/dashboard/innovations/new'
+    | '/dashboard/innovations/'
+    | '/dashboard/innovations/$slug/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -118,30 +248,57 @@ export interface FileRouteTypes {
     | '/auth'
     | '/explore'
     | '/institutions'
+    | '/moderation'
     | '/opportunities'
+    | '/reset-password'
+    | '/dashboard/applications'
+    | '/dashboard/notifications'
+    | '/dashboard/profile'
+    | '/dashboard/requests'
+    | '/dashboard/saved'
     | '/innovations/$slug'
     | '/innovators/$slug'
+    | '/dashboard'
     | '/innovators'
+    | '/dashboard/innovations/new'
+    | '/dashboard/innovations'
+    | '/dashboard/innovations/$slug/edit'
   id:
     | '__root__'
     | '/'
     | '/about'
     | '/auth'
+    | '/dashboard'
     | '/explore'
     | '/institutions'
+    | '/moderation'
     | '/opportunities'
+    | '/reset-password'
+    | '/dashboard/applications'
+    | '/dashboard/innovations'
+    | '/dashboard/notifications'
+    | '/dashboard/profile'
+    | '/dashboard/requests'
+    | '/dashboard/saved'
     | '/innovations/$slug'
     | '/innovators/$slug'
+    | '/dashboard/'
     | '/innovators/'
+    | '/dashboard/innovations/new'
+    | '/dashboard/innovations/'
+    | '/dashboard/innovations/$slug/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   AuthRoute: typeof AuthRoute
+  DashboardRoute: typeof DashboardRouteWithChildren
   ExploreRoute: typeof ExploreRoute
   InstitutionsRoute: typeof InstitutionsRoute
+  ModerationRoute: typeof ModerationRoute
   OpportunitiesRoute: typeof OpportunitiesRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   InnovationsSlugRoute: typeof InnovationsSlugRoute
   InnovatorsSlugRoute: typeof InnovatorsSlugRoute
   InnovatorsIndexRoute: typeof InnovatorsIndexRoute
@@ -170,6 +327,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/explore': {
       id: '/explore'
       path: '/explore'
@@ -184,12 +348,75 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InstitutionsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/moderation': {
+      id: '/moderation'
+      path: '/moderation'
+      fullPath: '/moderation'
+      preLoaderRoute: typeof ModerationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/opportunities': {
       id: '/opportunities'
       path: '/opportunities'
       fullPath: '/opportunities'
       preLoaderRoute: typeof OpportunitiesRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/': {
+      id: '/dashboard/'
+      path: '/'
+      fullPath: '/dashboard/'
+      preLoaderRoute: typeof DashboardIndexRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/applications': {
+      id: '/dashboard/applications'
+      path: '/applications'
+      fullPath: '/dashboard/applications'
+      preLoaderRoute: typeof DashboardApplicationsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/innovations': {
+      id: '/dashboard/innovations'
+      path: '/innovations'
+      fullPath: '/dashboard/innovations'
+      preLoaderRoute: typeof DashboardInnovationsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/notifications': {
+      id: '/dashboard/notifications'
+      path: '/notifications'
+      fullPath: '/dashboard/notifications'
+      preLoaderRoute: typeof DashboardNotificationsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/profile': {
+      id: '/dashboard/profile'
+      path: '/profile'
+      fullPath: '/dashboard/profile'
+      preLoaderRoute: typeof DashboardProfileRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/requests': {
+      id: '/dashboard/requests'
+      path: '/requests'
+      fullPath: '/dashboard/requests'
+      preLoaderRoute: typeof DashboardRequestsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/saved': {
+      id: '/dashboard/saved'
+      path: '/saved'
+      fullPath: '/dashboard/saved'
+      preLoaderRoute: typeof DashboardSavedRouteImport
+      parentRoute: typeof DashboardRoute
     }
     '/innovations/$slug': {
       id: '/innovations/$slug'
@@ -212,16 +439,79 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InnovatorsSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/innovations/': {
+      id: '/dashboard/innovations/'
+      path: '/'
+      fullPath: '/dashboard/innovations/'
+      preLoaderRoute: typeof DashboardInnovationsIndexRouteImport
+      parentRoute: typeof DashboardInnovationsRoute
+    }
+    '/dashboard/innovations/new': {
+      id: '/dashboard/innovations/new'
+      path: '/new'
+      fullPath: '/dashboard/innovations/new'
+      preLoaderRoute: typeof DashboardInnovationsNewRouteImport
+      parentRoute: typeof DashboardInnovationsRoute
+    }
+    '/dashboard/innovations/$slug/edit': {
+      id: '/dashboard/innovations/$slug/edit'
+      path: '/$slug/edit'
+      fullPath: '/dashboard/innovations/$slug/edit'
+      preLoaderRoute: typeof DashboardInnovationsSlugEditRouteImport
+      parentRoute: typeof DashboardInnovationsRoute
+    }
   }
 }
+
+interface DashboardInnovationsRouteChildren {
+  DashboardInnovationsNewRoute: typeof DashboardInnovationsNewRoute
+  DashboardInnovationsIndexRoute: typeof DashboardInnovationsIndexRoute
+  DashboardInnovationsSlugEditRoute: typeof DashboardInnovationsSlugEditRoute
+}
+
+const DashboardInnovationsRouteChildren: DashboardInnovationsRouteChildren = {
+  DashboardInnovationsNewRoute: DashboardInnovationsNewRoute,
+  DashboardInnovationsIndexRoute: DashboardInnovationsIndexRoute,
+  DashboardInnovationsSlugEditRoute: DashboardInnovationsSlugEditRoute,
+}
+
+const DashboardInnovationsRouteWithChildren =
+  DashboardInnovationsRoute._addFileChildren(DashboardInnovationsRouteChildren)
+
+interface DashboardRouteChildren {
+  DashboardApplicationsRoute: typeof DashboardApplicationsRoute
+  DashboardInnovationsRoute: typeof DashboardInnovationsRouteWithChildren
+  DashboardNotificationsRoute: typeof DashboardNotificationsRoute
+  DashboardProfileRoute: typeof DashboardProfileRoute
+  DashboardRequestsRoute: typeof DashboardRequestsRoute
+  DashboardSavedRoute: typeof DashboardSavedRoute
+  DashboardIndexRoute: typeof DashboardIndexRoute
+}
+
+const DashboardRouteChildren: DashboardRouteChildren = {
+  DashboardApplicationsRoute: DashboardApplicationsRoute,
+  DashboardInnovationsRoute: DashboardInnovationsRouteWithChildren,
+  DashboardNotificationsRoute: DashboardNotificationsRoute,
+  DashboardProfileRoute: DashboardProfileRoute,
+  DashboardRequestsRoute: DashboardRequestsRoute,
+  DashboardSavedRoute: DashboardSavedRoute,
+  DashboardIndexRoute: DashboardIndexRoute,
+}
+
+const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
+  DashboardRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   AuthRoute: AuthRoute,
+  DashboardRoute: DashboardRouteWithChildren,
   ExploreRoute: ExploreRoute,
   InstitutionsRoute: InstitutionsRoute,
+  ModerationRoute: ModerationRoute,
   OpportunitiesRoute: OpportunitiesRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   InnovationsSlugRoute: InnovationsSlugRoute,
   InnovatorsSlugRoute: InnovatorsSlugRoute,
   InnovatorsIndexRoute: InnovatorsIndexRoute,
