@@ -139,6 +139,7 @@ Configuration is read from `backend/.env` (ignored by Git). Copy `backend/.env.e
 | `DJANGO_CSRF_TRUSTED_ORIGINS` | localhost origins                | Full origins allowed to submit unsafe requests   |
 | `DJANGO_TIME_ZONE`            | `Africa/Dar_es_Salaam`           | Display/storage timezone                         |
 | `FRONTEND_URL`                | `http://localhost:8080`          | Used to build password-reset links               |
+| `API_PUBLIC_URL`              | empty                            | Public API origin for absolute media URLs in SSR |
 | `APP_VERSION`                 | `1.0.0`                          | Shown in the OpenAPI schema                      |
 
 ### Database
@@ -190,14 +191,20 @@ EMAIL_HOST_PASSWORD=...
 
 ### Limits and throttling
 
-| Variable                     | Default   | Purpose                                  |
-| ---------------------------- | --------- | ---------------------------------------- |
-| `MAX_INNOVATION_IMAGE_BYTES` | `5242880` | 5 MB innovation cover limit              |
-| `MAX_AVATAR_BYTES`           | `2097152` | 2 MB profile photo limit                 |
-| `THROTTLE_ANON`              | `120/min` | Anonymous API rate limit                 |
-| `THROTTLE_USER`              | `600/min` | Signed-in API rate limit                 |
-| `THROTTLE_AUTH`              | `15/min`  | Login/register/password-reset rate limit |
-| `THROTTLE_ENABLED`           | `1`       | Set `0` to disable (tests only)          |
+| Variable                           | Default                 | Purpose                                  |
+| ---------------------------------- | ----------------------- | ---------------------------------------- |
+| `MAX_INNOVATION_IMAGE_BYTES`       | `5242880`               | 5 MB innovation cover limit              |
+| `MAX_INNOVATION_MEDIA_IMAGES`      | `4`                     | Maximum gallery images per innovation    |
+| `MAX_INNOVATION_MEDIA_VIDEOS`      | `2`                     | Maximum videos per innovation            |
+| `MAX_INNOVATION_MEDIA_IMAGE_BYTES` | `10485760`              | 10 MB per gallery image                  |
+| `MAX_INNOVATION_VIDEO_BYTES`       | `52428800`              | 50 MB per video                          |
+| `MAX_VIDEO_POSTER_BYTES`           | `4194304`               | 4 MB per video poster                    |
+| `PRIVATE_MEDIA_ROOT`               | `backend/private_media` | Private gallery/video storage root       |
+| `MAX_AVATAR_BYTES`                 | `2097152`               | 2 MB profile photo limit                 |
+| `THROTTLE_ANON`                    | `120/min`               | Anonymous API rate limit                 |
+| `THROTTLE_USER`                    | `600/min`               | Signed-in API rate limit                 |
+| `THROTTLE_AUTH`                    | `15/min`                | Login/register/password-reset rate limit |
+| `THROTTLE_ENABLED`                 | `1`                     | Set `0` to disable (tests only)          |
 
 > Django's default throttle cache is per-process memory. For multiple Gunicorn workers or multiple servers, configure a shared cache such as Redis so limits are global.
 
@@ -215,7 +222,7 @@ source .venv/bin/activate
 pytest
 ```
 
-Expected: **60 passed**.
+Expected: **73 passed**.
 
 To run against SQLite instead:
 
@@ -306,7 +313,7 @@ server {
     ssl_certificate     /etc/letsencrypt/live/tie.example/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/tie.example/privkey.pem;
 
-    client_max_body_size 6m;
+    client_max_body_size 160m;
 
     location /api/ {
         proxy_pass http://127.0.0.1:8000;
@@ -340,6 +347,7 @@ With this setup:
 DJANGO_ALLOWED_HOSTS=tie.example
 DJANGO_CSRF_TRUSTED_ORIGINS=https://tie.example
 CORS_ALLOWED_ORIGINS=https://tie.example
+API_PUBLIC_URL=https://tie.example
 SESSION_COOKIE_SECURE=true
 CSRF_COOKIE_SECURE=true
 SECURE_SSL_REDIRECT=true
@@ -350,7 +358,9 @@ Django must receive `X-Forwarded-Proto` (already configured via `SECURE_PROXY_SS
 
 ### 5.5 Object storage for uploads
 
-Local `FileSystemStorage` is the default. For production scale, add a storage backend (for example `django-storages` with S3) and set `DEFAULT_FILE_STORAGE`/`STORAGES` accordingly. Serve uploads from the same origin or a CDN, and keep image size/type validation enabled.
+Local `FileSystemStorage` is the default. Public cover images/avatars use `MEDIA_ROOT`; innovation gallery images and videos use `PRIVATE_MEDIA_ROOT` and are streamed by the permission-checked API (`/api/v1/media/...`). For production scale, add a private S3-compatible storage backend for `PRIVATE_MEDIA_ROOT` and keep the public/private split. Serve public media from the same origin or a CDN, and keep the image/video size/type validation enabled.
+
+The upload form sends each media selection in the innovation create/update request. Increase the reverse-proxy request-body limit to cover four images plus two videos (the default maximum is roughly 140 MB plus form overhead), or switch to direct-to-object-storage uploads for a smaller application-server footprint.
 
 ---
 
@@ -368,9 +378,10 @@ The same account can sign in at `/admin/` and `/moderation`.
 ### Backups
 
 - Daily `pg_dump --format=custom tie > /backups/tie-$(date +%F).dump`
-- Back up uploaded media (`backend/media/uploads`, `backend/media/avatars`, `backend/media/innovations`) or object-storage bucket.
+- Back up uploaded public media (`backend/media/uploads`, `backend/media/avatars`, `backend/media/innovations`) and private innovation media (`backend/private_media`) or the equivalent object-storage buckets.
 - Retain at least 30 daily backups and test restores quarterly.
-- The database and media must be restored together for images to match records.
+- The database and both media roots must be restored together for images to match records.
+- Innovation gallery images and videos are streamed by the API, not served directly from `/media`. Keep `PRIVATE_MEDIA_ROOT` outside any web server document root.
 
 ### Logs and monitoring
 
@@ -393,6 +404,6 @@ The same account can sign in at `/admin/` and `/moderation`.
 - `DJANGO_DEBUG=false`; unique secret key; no secrets in Git.
 - Restrict `/admin/` to staff and consider IP allow-listing.
 - Keep dependencies patched (`pip list --outdated`, `bun outdated`).
-- Store media outside the code checkout and scan uploads if accepting public content.
+- Store media outside the code checkout and scan uploads if accepting public content. Innovation gallery/video files live under `PRIVATE_MEDIA_ROOT`; never alias that directory publicly.
 - Configure SMTP with SPF/DKIM/DMARC for reliable password-reset delivery.
 - Add a shared cache before scaling to multiple API processes.

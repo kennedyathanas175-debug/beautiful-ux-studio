@@ -140,6 +140,10 @@ STORAGES = {
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+# Innovation gallery/video files are private by default and streamed through a
+# permission-checked API endpoint, so draft media never becomes publicly fetchable.
+PRIVATE_MEDIA_ROOT = Path(os.getenv("PRIVATE_MEDIA_ROOT") or (BASE_DIR / "private_media"))
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # ---------------------------------------------------------------------------
@@ -233,11 +237,22 @@ EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "TIE <no-reply@tie.or.tz>")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:8080")
+# Public origin used when building absolute media URLs. Important for SSR behind a proxy.
+API_PUBLIC_URL = os.getenv("API_PUBLIC_URL", "").rstrip("/")
 
 
 # Business rules
 AUTO_PUBLISH_INNOVATIONS = env_bool("AUTO_PUBLISH_INNOVATIONS", True)
 MAX_INNOVATION_IMAGE_BYTES = int(os.getenv("MAX_INNOVATION_IMAGE_BYTES", str(5 * 1024 * 1024)))
+MAX_INNOVATION_MEDIA_IMAGES = int(os.getenv("MAX_INNOVATION_MEDIA_IMAGES", "4"))
+MAX_INNOVATION_MEDIA_VIDEOS = int(os.getenv("MAX_INNOVATION_MEDIA_VIDEOS", "2"))
+MAX_INNOVATION_MEDIA_IMAGE_BYTES = int(
+    os.getenv("MAX_INNOVATION_MEDIA_IMAGE_BYTES", str(10 * 1024 * 1024))
+)
+MAX_INNOVATION_VIDEO_BYTES = int(
+    os.getenv("MAX_INNOVATION_VIDEO_BYTES", str(50 * 1024 * 1024))
+)
+MAX_VIDEO_POSTER_BYTES = int(os.getenv("MAX_VIDEO_POSTER_BYTES", str(4 * 1024 * 1024)))
 MAX_AVATAR_BYTES = int(os.getenv("MAX_AVATAR_BYTES", str(2 * 1024 * 1024)))
 
 LOGGING = {

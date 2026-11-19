@@ -19,13 +19,13 @@ The platform was converted into a two-tier application:
 - **Backend:** a Django 5.2 + Django REST Framework API with session authentication, CSRF protection, role-based staff access, PostgreSQL persistence, image uploads, moderation workflows, notifications, collaboration requests, opportunities and applications.
 - **Delivery:** the frontend proxies `/api` and `/media` to Django in development. A same-origin reverse proxy is the recommended production topology.
 
-The implementation preserves the original visual design while replacing all simulated functionality with real API calls and database writes. The backend contains four Django apps (`accounts`, `ecosystem`, `opportunities`, `core`) and 14 domain models plus Django's built-in auth/session models. The migration seed imports the original catalogue without changing URLs or content.
+The implementation preserves the original visual design while replacing all simulated functionality with real API calls and database writes. The backend contains four Django apps (`accounts`, `ecosystem`, `opportunities`, `core`) and 15 domain models plus Django's built-in auth/session models. The migration seed imports the original catalogue without changing URLs or content.
 
 Verification at the time of writing:
 
-- **60 Django/DRF tests passed** against PostgreSQL.
-- **22 frontend tests passed**; strict TypeScript, ESLint (0 errors) and production build all pass.
-- Real browser journeys passed for registration, publishing, editing, likes, saves, comments, following, collaboration, applications, moderation, opportunity/institution administration, responsive navigation and password-reset UI.
+- **73 Django/DRF tests passed** against PostgreSQL.
+- **27 frontend tests passed**; strict TypeScript, ESLint (0 errors) and production build all pass.
+- Real browser journeys passed for registration, publishing, editing, likes, saves, comments, following, collaboration, applications, moderation, opportunity/institution administration, responsive navigation, password-reset UI and innovation image/video upload with gallery/video playback.
 
 ---
 
@@ -206,12 +206,14 @@ backend/
     test_auth.py               # 17 tests
     test_catalog.py            # 8 tests
     test_innovations.py        # 15 tests
+    test_media.py              # 13 tests
     test_opportunities.py      # 6 tests
     test_social.py             # 13 tests
     test_seed.py               # 1 test
   media/
     seed/                      # committed seed images
-    uploads/avatars/...        # runtime uploads (ignored)
+    uploads/avatars/...        # public runtime uploads (ignored)
+  private_media/               # private innovation gallery/video storage (ignored)
 ```
 
 ### Module responsibilities
@@ -262,27 +264,28 @@ erDiagram
 
 ### 6.2 Main tables
 
-| Model                    | Key fields and constraints                                                                                                                                                                                        |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `User` (`accounts_user`) | UUID-free bigint PK, unique email as `USERNAME_FIELD`, unique slug, `full_name`, role enum, avatar, institution FK, skills/looking_for/links JSON, base_followers, `is_public`, staff flags, timestamps           |
-| `Follow`                 | unique `(follower, following)`; DB constraint prevents self-follow                                                                                                                                                |
-| `Notification`           | recipient, optional actor, kind, title/message/url, `is_read`; indexed on recipient/read                                                                                                                          |
-| `Category`               | slug primary key, English/Kiswahili name, icon, order                                                                                                                                                             |
-| `Institution`            | unique slug, name/short name/type/location, description, website, verified, focus M2M, active                                                                                                                     |
-| `Innovation`             | unique slug, content fields, JSON objectives/tech, category FK, stage, image, creator FK, team M2M, institution FK, region, status, featured/trending, views, legacy_likes, published_at, generated `search_text` |
-| `InnovationLike`         | unique `(innovation, user)`                                                                                                                                                                                       |
-| `InnovationBookmark`     | unique `(innovation, user)`                                                                                                                                                                                       |
-| `Comment`                | innovation FK, author FK, body (2,000), hidden flag/reviewer, timestamps                                                                                                                                          |
-| `CollaborationRequest`   | sender/recipient FKs, optional innovation FK, message, status, response, timestamps; self-request constraint; serializer-level duplicate-pending validation                                                       |
-| `Report`                 | reporter, exactly one of innovation/comment, reason/details, status, resolution note, reviewer; DB check constraint                                                                                               |
-| `Opportunity`            | unique slug, type enum, organizer, deadline, location, summary, eligibility JSON, reward, categories M2M, external URL, status, created_by                                                                        |
-| `OpportunityBookmark`    | unique `(opportunity, user)`                                                                                                                                                                                      |
-| `OpportunityApplication` | unique `(opportunity, applicant)`, motivation, status, review note                                                                                                                                                |
+| Model                    | Key fields and constraints                                                                                                                                                                                                              |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `User` (`accounts_user`) | UUID-free bigint PK, unique email as `USERNAME_FIELD`, unique slug, `full_name`, role enum, avatar, institution FK, skills/looking_for/links JSON, base_followers, `is_public`, staff flags, timestamps                                 |
+| `Follow`                 | unique `(follower, following)`; DB constraint prevents self-follow                                                                                                                                                                      |
+| `Notification`           | recipient, optional actor, kind, title/message/url, `is_read`; indexed on recipient/read                                                                                                                                                |
+| `Category`               | slug primary key, English/Kiswahili name, icon, order                                                                                                                                                                                   |
+| `Institution`            | unique slug, name/short name/type/location, description, website, verified, focus M2M, active                                                                                                                                           |
+| `Innovation`             | unique slug, content fields, JSON objectives/tech, category FK, stage, cover image, creator FK, team M2M, institution FK, region, status, featured/trending, views, legacy_likes, published_at, generated `search_text`                 |
+| `InnovationMedia`        | innovation FK, kind (`image`/`video`), designation (`gallery`/`pitch`/`demo`), private file reference, generated thumbnail/poster, original filename, size, MIME type, order, uploaded_at; DB constraint validates designation per kind |
+| `InnovationLike`         | unique `(innovation, user)`                                                                                                                                                                                                             |
+| `InnovationBookmark`     | unique `(innovation, user)`                                                                                                                                                                                                             |
+| `Comment`                | innovation FK, author FK, body (2,000), hidden flag/reviewer, timestamps                                                                                                                                                                |
+| `CollaborationRequest`   | sender/recipient FKs, optional innovation FK, message, status, response, timestamps; self-request constraint; serializer-level duplicate-pending validation                                                                             |
+| `Report`                 | reporter, exactly one of innovation/comment, reason/details, status, resolution note, reviewer; DB check constraint                                                                                                                     |
+| `Opportunity`            | unique slug, type enum, organizer, deadline, location, summary, eligibility JSON, reward, categories M2M, external URL, status, created_by                                                                                              |
+| `OpportunityBookmark`    | unique `(opportunity, user)`                                                                                                                                                                                                            |
+| `OpportunityApplication` | unique `(opportunity, applicant)`, motivation, status, review note                                                                                                                                                                      |
 
 ### 6.3 Indexes and data integrity
 
-- Indexes on innovation `status/published_at`, category, region, stage; institution type/active; comments by innovation/date; collaboration by sender/recipient status; reports by status/date.
-- `CheckConstraint` for non-negative views, report target exactly-one, no self-follow, no self-collaboration.
+- Indexes on innovation `status/published_at`, category, region, stage; institution type/active; comments by innovation/date; collaboration by sender/recipient status; reports by status/date; media by innovation/kind/order.
+- `CheckConstraint` for non-negative views, report target exactly-one, no self-follow, no self-collaboration, and valid media designation for each kind.
 - `PROTECT` on category deletion (prevents accidental taxonomy loss); `SET_NULL` for institution affiliations and creators of opportunities (history retained); cascade for user-owned content.
 - Slugs are generated with a collision-safe utility (`-2`, `-3`, etc.) and preserved after creation to keep public links stable.
 
@@ -306,6 +309,7 @@ Migrations were generated from models and committed:
 accounts/migrations/0001_initial.py
 accounts/migrations/0002_initial.py
 ecosystem/migrations/0001_initial.py
+ecosystem/migrations/0002_innovationmedia.py
 opportunities/migrations/0001_initial.py
 ```
 
@@ -320,7 +324,11 @@ python manage.py makemigrations --check --dry-run   # verification
 
 A fresh SQLite migration smoke test and a PostgreSQL migration run both completed successfully.
 
-### 7.3 Seed migration
+### 7.3 Private media storage
+
+Gallery images, videos and generated thumbnails/posters use a dedicated `FileSystemStorage` rooted at `PRIVATE_MEDIA_ROOT`. This directory is outside `MEDIA_ROOT` and is never served directly by the web server. The API streams files through `/api/v1/media/{id}/file/` and `/api/v1/media/{id}/thumbnail/`, checking publication status and ownership on every request. Public cover images and avatars continue to use the existing public `MEDIA_ROOT`.
+
+### 7.4 Seed migration
 
 `python manage.py seed_catalog`:
 
@@ -413,17 +421,18 @@ Public serializers omit email. The current-user endpoint uses a separate `MeSeri
 
 ### 9.2 Endpoint groups
 
-| Group            | Representative endpoints                                                             | Auth                        |
-| ---------------- | ------------------------------------------------------------------------------------ | --------------------------- |
-| Session/auth     | `POST /auth/register/`, `/login/`, `/logout/`, `GET/PATCH /auth/me/`, password reset | Public / session            |
-| Profiles         | `GET /auth/innovators/`, `/auth/users/{slug}/`, follow/unfollow                      | Public / session            |
-| Dashboard        | `GET /auth/dashboard/`, notifications                                                | Session                     |
-| Catalogue        | `GET /categories/`, `/institutions/`, `/innovations/`                                | Public                      |
-| Innovation write | `POST/PATCH/DELETE /innovations/...`, like/bookmark/moderate                         | Session / owner / staff     |
-| Discussion       | comments, collaboration requests, reports                                            | Public read / session write |
-| Opportunities    | list/detail, bookmark, apply, staff CRUD, applications                               | Public / session / staff    |
-| Core             | `/health/`, `/stats/`, `/home/`, `/moderation/overview/`                             | Public / staff              |
-| Docs             | `/api/schema/`, `/api/docs/`, `/api/redoc/`                                          | Public                      |
+| Group            | Representative endpoints                                                             | Auth                                    |
+| ---------------- | ------------------------------------------------------------------------------------ | --------------------------------------- |
+| Session/auth     | `POST /auth/register/`, `/login/`, `/logout/`, `GET/PATCH /auth/me/`, password reset | Public / session                        |
+| Profiles         | `GET /auth/innovators/`, `/auth/users/{slug}/`, follow/unfollow                      | Public / session                        |
+| Dashboard        | `GET /auth/dashboard/`, notifications                                                | Session                                 |
+| Catalogue        | `GET /categories/`, `/institutions/`, `/innovations/`                                | Public                                  |
+| Innovation write | `POST/PATCH/DELETE /innovations/...`, like/bookmark/moderate                         | Session / owner / staff                 |
+| Innovation media | `/media/{id}/file/`, `/media/{id}/thumbnail/`, media fields on innovation write      | Published public / draft owner or staff |
+| Discussion       | comments, collaboration requests, reports                                            | Public read / session write             |
+| Opportunities    | list/detail, bookmark, apply, staff CRUD, applications                               | Public / session / staff                |
+| Core             | `/health/`, `/stats/`, `/home/`, `/moderation/overview/`                             | Public / staff                          |
+| Docs             | `/api/schema/`, `/api/docs/`, `/api/redoc/`                                          | Public                                  |
 
 The complete endpoint reference, request bodies, filters and response examples are in [`docs/api_documentation.md`](./api_documentation.md). Swagger UI is served at `/api/docs/`.
 
@@ -543,7 +552,17 @@ sender creates (pending)
 - Staff can move applications to under review, accepted or rejected; the applicant receives a notification and dashboard status.
 - Bookmarks are unique and persisted.
 
-### 11.6 Notifications
+### 11.6 Innovation media lifecycle
+
+- A maximum of four gallery images and two videos are allowed per innovation, counting existing media not explicitly removed.
+- Images are validated with Pillow; JPEG, PNG and WebP are accepted. Videos must have an MP4/WebM extension, an accepted MIME type and valid container magic bytes.
+- New gallery images and videos are stored privately with generated metadata (`original_filename`, `file_size`, `mime_type`, `order`). Images get a 900×900 JPEG thumbnail; videos get a browser-generated poster resized server-side.
+- Exactly one video is marked `pitch`; the other is `demo`. The form can change the primary video, and the backend re-designates the rest.
+- Removing or replacing media deletes the old private file and thumbnail via a `post_delete` signal. QuerySet deletions and cascading innovation deletion both trigger cleanup.
+- Public detail responses include media metadata; catalogue cards use a thumbnail-only `previewImage` when no cover exists. Public video players use `preload="none"` with posters, so video bytes are fetched only when the user presses play.
+- Draft/hidden/archived media endpoints return 404 to anonymous users and non-owners.
+
+### 11.7 Notifications
 
 Notifications are created synchronously for:
 
@@ -560,26 +579,27 @@ They appear in the dashboard and notification center, support mark-one/mark-all-
 
 ## 12. Security measures and configurations
 
-| Area                     | Implementation                                                                                             |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------- |
-| Password storage         | Django PBKDF2 hashing; validators; no plaintext storage                                                    |
-| Session                  | Server-side sessions, HttpOnly cookie, SameSite=Lax, Secure in production, 14-day age                      |
-| CSRF                     | CSRF cookie + `X-CSRFToken` required for authenticated unsafe requests; custom JSON failure                |
-| Authorization            | Deny-by-default permissions; object ownership checks; staff checks for moderation/admin tools              |
-| Public/private data      | Email omitted from public serializers; private profiles return 404 to outsiders                            |
-| Input validation         | DRF serializers, field length/choice validation, URL validation, list cleaning, image type/size validation |
-| SQL injection            | Django ORM/parameterization; no raw user SQL                                                               |
-| XSS                      | React escapes content; no `dangerouslySetInnerHTML` for user data                                          |
-| Uploads                  | ImageField/Pillow; 5 MB innovation, 2 MB avatar; filenames/paths managed by Django                         |
-| Rate limiting            | DRF throttles; per-scope auth limit; shared cache recommended for scale                                    |
-| Error responses          | No stack traces/secrets to clients; server errors logged; generic 500 payload                              |
-| Transport                | HTTPS/secure-cookie/HSTS settings; `SECURE_PROXY_SSL_HEADER` for reverse proxy                             |
-| Headers                  | `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, referrer policy                                |
-| Secrets                  | `.env` ignored; `.env.example` contains placeholders only; no production credentials in repo               |
-| CORS                     | Explicit allow-list and credentials; same-origin recommended                                               |
-| Enumeration              | Password reset returns a generic 202; login error is generic                                               |
-| Duplicate/abuse controls | Unique constraints for likes/bookmarks/follows/applications; duplicate pending collaborations rejected     |
-| Admin                    | Django admin staff-only; moderation API staff-only                                                         |
+| Area                     | Implementation                                                                                                 |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| Password storage         | Django PBKDF2 hashing; validators; no plaintext storage                                                        |
+| Session                  | Server-side sessions, HttpOnly cookie, SameSite=Lax, Secure in production, 14-day age                          |
+| CSRF                     | CSRF cookie + `X-CSRFToken` required for authenticated unsafe requests; custom JSON failure                    |
+| Authorization            | Deny-by-default permissions; object ownership checks; staff checks for moderation/admin tools                  |
+| Public/private data      | Email omitted from public serializers; private profiles return 404 to outsiders                                |
+| Input validation         | DRF serializers, field length/choice validation, URL validation, list cleaning, image type/size validation     |
+| SQL injection            | Django ORM/parameterization; no raw user SQL                                                                   |
+| XSS                      | React escapes content; no `dangerouslySetInnerHTML` for user data                                              |
+| Uploads                  | Pillow/ImageField for images; MP4/WebM extension/MIME/magic checks for video; configurable size limits         |
+| Private media            | Gallery/video files outside public media root; every read checks publication/ownership; Range support; nosniff |
+| Rate limiting            | DRF throttles; per-scope auth limit; shared cache recommended for scale                                        |
+| Error responses          | No stack traces/secrets to clients; server errors logged; generic 500 payload                                  |
+| Transport                | HTTPS/secure-cookie/HSTS settings; `SECURE_PROXY_SSL_HEADER` for reverse proxy                                 |
+| Headers                  | `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, referrer policy                                    |
+| Secrets                  | `.env` ignored; `.env.example` contains placeholders only; no production credentials in repo                   |
+| CORS                     | Explicit allow-list and credentials; same-origin recommended                                                   |
+| Enumeration              | Password reset returns a generic 202; login error is generic                                                   |
+| Duplicate/abuse controls | Unique constraints for likes/bookmarks/follows/applications; duplicate pending collaborations rejected         |
+| Admin                    | Django admin staff-only; moderation API staff-only                                                             |
 
 No system is "fully secure" by assertion; production should add a shared cache, HTTPS, dependency updates, backups and an external security review.
 
@@ -591,10 +611,11 @@ See [`setup_and_deployment.md`](./setup_and_deployment.md) for the complete tabl
 
 - Django: `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, hosts, CSRF trusted origins, timezone.
 - Database: `DB_ENGINE`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`.
-- Frontend URL: `FRONTEND_URL` (password-reset links).
+- Frontend URL: `FRONTEND_URL` (password-reset links); `API_PUBLIC_URL` for absolute media URLs when SSR runs through an internal API host.
 - Email: `EMAIL_BACKEND`, SMTP host/port/user/password/TLS/from address.
 - Security: secure cookies, SSL redirect, HSTS.
-- Limits: upload sizes, throttle rates.
+- Limits: cover/avatar sizes, gallery image count/size, video count/size, video poster size; private media root.
+- Frontend media accept rules and client-side count/size validation are mirrored in `src/lib/media.ts`.
 - Frontend: `VITE_API_URL` (browser), `API_INTERNAL_URL` (SSR), `API_PROXY_TARGET` (dev proxy).
 
 No secret values are included in this report or committed to the repository.
@@ -630,49 +651,53 @@ Full results and defect history: [`testing_report.md`](./testing_report.md).
 
 ## 15. Detailed test results
 
-| Area                                  | Result                                         |
-| ------------------------------------- | ---------------------------------------------- |
-| Backend suite                         | **60 passed / 0 failed**                       |
-| Frontend unit suite                   | **22 passed / 0 failed**                       |
-| TypeScript                            | **0 errors**                                   |
-| ESLint                                | **0 errors**, 9 existing Fast Refresh warnings |
-| Production build                      | **Success**                                    |
-| Node SSR production build smoke test  | **Success** (HTML + static assets served)      |
-| PostgreSQL migrations                 | **Success**                                    |
-| SQLite migration smoke test           | **Success**                                    |
-| Django system check                   | **No issues**                                  |
-| Migration drift check                 | **No changes detected**                        |
-| Seed idempotency                      | **Second run created 0 duplicates**            |
-| Health endpoint                       | **200, database OK**                           |
-| E2E user journey A (publish/engage)   | **Passed**                                     |
-| E2E user journey B (collaboration)    | **Passed**                                     |
-| E2E user journey C (moderation/admin) | **Passed**                                     |
-| E2E discovery/filter/mobile/reset     | **Passed**                                     |
-| Real SMTP inbox delivery              | **Not tested** (no SMTP credentials)           |
-| Load/performance testing              | **Not tested**                                 |
-| External penetration test             | **Not performed**                              |
-| Full WCAG audit                       | **Not performed**                              |
+| Area                                  | Result                                                                             |
+| ------------------------------------- | ---------------------------------------------------------------------------------- |
+| Backend suite                         | **73 passed / 0 failed**                                                           |
+| Frontend unit suite                   | **27 passed / 0 failed**                                                           |
+| TypeScript                            | **0 errors**                                                                       |
+| ESLint                                | **0 errors**, 9 existing Fast Refresh warnings                                     |
+| Production build                      | **Success**                                                                        |
+| Node SSR production build smoke test  | **Success** (HTML + static assets served)                                          |
+| PostgreSQL migrations                 | **Success**                                                                        |
+| SQLite migration smoke test           | **Success**                                                                        |
+| Django system check                   | **No issues**                                                                      |
+| Migration drift check                 | **No changes detected**                                                            |
+| Seed idempotency                      | **Second run created 0 duplicates**                                                |
+| Health endpoint                       | **200, database OK**                                                               |
+| E2E user journey A (publish/engage)   | **Passed**                                                                         |
+| E2E user journey B (collaboration)    | **Passed**                                                                         |
+| E2E user journey C (moderation/admin) | **Passed**                                                                         |
+| E2E discovery/filter/mobile/reset     | **Passed**                                                                         |
+| E2E media upload/gallery/playback     | **Passed** (4 images, 2 videos, limits, draft privacy, no pre-play video download) |
+| Real SMTP inbox delivery              | **Not tested** (no SMTP credentials)                                               |
+| Load/performance testing              | **Not tested**                                                                     |
+| External penetration test             | **Not performed**                                                                  |
+| Full WCAG audit                       | **Not performed**                                                                  |
 
 ---
 
 ## 16. Bugs identified and resolved
 
-| Bug                                        | Technical cause                                | Fix                                                   | Verification                          |
-| ------------------------------------------ | ---------------------------------------------- | ----------------------------------------------------- | ------------------------------------- |
-| No persistence for catalogues              | Static arrays                                  | DB models, seed, API                                  | Category/innovation tests; E2E        |
-| No working accounts                        | Placeholder UI                                 | User model, session auth, auth views/forms            | 16 auth tests; E2E registration/login |
-| Local-only likes/saves/follows             | localStorage                                   | Persisted models + React Query                        | Social tests; E2E                     |
-| Email leaked in public innovator directory | Reused private serializer                      | Public serializer without email + `MeSerializer`      | Privacy test asserts no email         |
-| 500 on innovation annotations              | `Innovation.likes.through` on a reverse FK     | Explicit `InnovationLike`/`InnovationBookmark` models | All innovation tests                  |
-| Institution filter 500                     | Filtered FK by slug using `institution_id`     | `institution__slug__in`                               | Explore filter test                   |
-| `Http404` broke exception handler          | Assumed `.detail` on every exception           | Explicit Django exception branches                    | NotFound tests                        |
-| Notification 500                           | Missing camelCase field declarations           | `isRead`, `createdAt` declared                        | Notification test                     |
-| Admin new-institution crash                | Null dereference in dialog initial state       | Branch-specific default                               | E2E create institution                |
-| Dashboard redirect loop to `/auth`         | Redirect effect re-ran with new pathname       | Only redirect while path starts with `/dashboard`     | E2E guard test                        |
-| Local images 404                           | Hosted Lovable asset proxy unavailable locally | Downloaded licensed assets to `public/images`         | Browser asset check                   |
-| Seed dictionary mutation                   | In-place `pop()`                               | Copy records per loop                                 | Seed idempotency test                 |
-| Unpublished content exposure               | Would be possible if filtering only in UI      | Server queryset rules + tests                         | Draft/hidden 404 tests                |
-| Duplicate applications/likes/etc.          | Possible without constraints                   | Unique constraints and serializer checks              | Constraint tests                      |
+| Bug                                        | Technical cause                                  | Fix                                                   | Verification                          |
+| ------------------------------------------ | ------------------------------------------------ | ----------------------------------------------------- | ------------------------------------- |
+| No persistence for catalogues              | Static arrays                                    | DB models, seed, API                                  | Category/innovation tests; E2E        |
+| No working accounts                        | Placeholder UI                                   | User model, session auth, auth views/forms            | 16 auth tests; E2E registration/login |
+| Local-only likes/saves/follows             | localStorage                                     | Persisted models + React Query                        | Social tests; E2E                     |
+| Email leaked in public innovator directory | Reused private serializer                        | Public serializer without email + `MeSerializer`      | Privacy test asserts no email         |
+| 500 on innovation annotations              | `Innovation.likes.through` on a reverse FK       | Explicit `InnovationLike`/`InnovationBookmark` models | All innovation tests                  |
+| Institution filter 500                     | Filtered FK by slug using `institution_id`       | `institution__slug__in`                               | Explore filter test                   |
+| `Http404` broke exception handler          | Assumed `.detail` on every exception             | Explicit Django exception branches                    | NotFound tests                        |
+| Notification 500                           | Missing camelCase field declarations             | `isRead`, `createdAt` declared                        | Notification test                     |
+| Admin new-institution crash                | Null dereference in dialog initial state         | Branch-specific default                               | E2E create institution                |
+| Dashboard redirect loop to `/auth`         | Redirect effect re-ran with new pathname         | Only redirect while path starts with `/dashboard`     | E2E guard test                        |
+| Local images 404                           | Hosted Lovable asset proxy unavailable locally   | Downloaded licensed assets to `public/images`         | Browser asset check                   |
+| Seed dictionary mutation                   | In-place `pop()`                                 | Copy records per loop                                 | Seed idempotency test                 |
+| Unpublished content exposure               | Would be possible if filtering only in UI        | Server queryset rules + tests                         | Draft/hidden 404 tests                |
+| Duplicate applications/likes/etc.          | Possible without constraints                     | Unique constraints and serializer checks              | Constraint tests                      |
+| Stale media list after edit                | Prefetched media cache survived update           | Clear prefetch cache after media mutations            | Media update tests                    |
+| Draft media URL could be guessed           | Files under public media root would be fetchable | Private storage + permission-checked streaming        | Draft media access tests              |
+| Orphaned media objects after removal       | FileField does not delete automatically          | `post_delete` signal removes file + thumbnail/poster  | Media cleanup tests                   |
 
 ---
 
@@ -691,7 +716,10 @@ Full results and defect history: [`testing_report.md`](./testing_report.md).
 11. **Legacy engagement values.** Imported baseline likes/views/followers are retained for continuity. They are clearly separated in the model but displayed together with live values by design.
 12. **Public content moderation policy.** Publishing is immediate; policy/terms and moderation service-level targets must be defined by the platform owner.
 13. **No native mobile apps/tokens.** The API is session-based. Add a token authentication scheme if official mobile clients are required.
-14. **Uploaded image processing.** Images are stored as uploaded; no thumbnailing/compression/AV scanning. Add an image pipeline/CDN for production.
+14. **Large uploads use the application server.** Four images and two videos are submitted in one multipart request; Nginx must allow the configured body size (160 MB in the example). For high traffic, add direct-to-object-storage uploads or per-file upload endpoints.
+15. **Uploaded public images are stored as uploaded; gallery images get thumbnails but no AV scanning.** Add malware scanning and an image pipeline/CDN for production.
+16. **No server-side video transcoding.** The platform accepts MP4/WebM and relies on browser codec support. Add background transcoding and adaptive streaming for broader device compatibility at scale.
+17. **No in-browser camera recording yet.** The upload flow is designed for existing device files; recording is a future extension.
 
 ---
 
@@ -772,6 +800,8 @@ A complete guide with Nginx, Gunicorn, security settings and environment tables 
 12. Add Docker/Compose or infrastructure-as-code for reproducible staging/production environments.
 13. Add rate limiting and anti-spam controls for comments/reports (e.g., per-user action quotas).
 14. Add localized backend content fields or translation workflow if user content must be bilingual.
+15. Add direct-to-object-storage multipart uploads and background video transcoding for large-scale media.
+16. Add an in-platform camera recorder using the existing media API once device-recording support is prioritised.
 
 ---
 

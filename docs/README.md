@@ -10,6 +10,7 @@ Start here depending on your role:
 | [Testing report](./testing_report.md)                     | Test environment, results, E2E scenarios and bugs resolved    |
 | [Setup and deployment](./setup_and_deployment.md)         | Local setup, environment variables, production and operations |
 | [Implementation plan](./implementation_plan.md)           | Frontend-to-backend mapping and design decisions              |
+| [Media upload feature](./media_upload_feature.md)         | Gallery images, pitch/demo videos, storage and restrictions   |
 
 Quick links inside the application:
 

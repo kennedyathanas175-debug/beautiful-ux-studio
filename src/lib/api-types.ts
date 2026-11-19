@@ -50,6 +50,22 @@ export interface ViewerState {
   collaborationStatus: "pending" | "accepted" | "declined" | "withdrawn" | null;
 }
 
+export type InnovationMediaKind = "image" | "video";
+export type InnovationMediaDesignation = "gallery" | "pitch" | "demo";
+
+export interface InnovationMedia {
+  id: number;
+  kind: InnovationMediaKind;
+  designation: InnovationMediaDesignation;
+  url: string;
+  thumbnailUrl: string | null;
+  originalFilename: string;
+  fileSize: number;
+  mimeType: string;
+  uploadedAt: string;
+  order: number;
+}
+
 export interface Innovation {
   slug: string;
   title: string;
@@ -75,6 +91,9 @@ export interface Innovation {
   link: string;
   status: "draft" | "published" | "hidden" | "archived";
   viewer: ViewerState;
+  media?: InnovationMedia[];
+  previewImage?: string | null;
+  mediaCounts?: { images: number; videos: number };
 }
 
 export interface Innovator extends UserSummary {

@@ -148,6 +148,66 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   return data as T;
 }
 
+async function uploadRequest<T>(
+  path: string,
+  formData: FormData,
+  method: "POST" | "PATCH",
+  onProgress?: ((percent: number) => void) | undefined,
+): Promise<T> {
+  await ensureCsrf();
+  const token = cookie("csrftoken");
+  return new Promise<T>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(method, buildUrl(path), true);
+    xhr.withCredentials = true;
+    xhr.setRequestHeader("Accept", "application/json");
+    if (token) xhr.setRequestHeader("X-CSRFToken", token);
+    xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && onProgress) {
+        onProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)));
+      }
+    };
+    xhr.onerror = () =>
+      reject(
+        new ApiError(
+          "Unable to upload media. Check your connection and try again.",
+          0,
+          "network_error",
+        ),
+      );
+    xhr.onabort = () => reject(new ApiError("Upload cancelled.", 0, "upload_cancelled"));
+    xhr.onload = () => {
+      let data: unknown = null;
+      if (xhr.responseText) {
+        try {
+          data = JSON.parse(xhr.responseText);
+        } catch {
+          data = xhr.responseText;
+        }
+      }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onProgress?.(100);
+        resolve(data as T);
+        return;
+      }
+      const payload = (data && typeof data === "object" ? data : {}) as ApiErrorPayload;
+      reject(
+        new ApiError(
+          payload.error?.message ??
+            (xhr.status === 413
+              ? "The upload is too large for the server. Choose smaller files."
+              : "The media upload could not be completed."),
+          xhr.status,
+          payload.error?.code ?? "upload_error",
+          payload.error?.fields ?? {},
+        ),
+      );
+    };
+    xhr.send(formData);
+  });
+}
+
 export const api = {
   get: <T>(path: string, params?: QueryParams, signal?: AbortSignal) =>
     request<T>(path, { params, ...(signal ? { signal } : {}) }),
@@ -156,6 +216,11 @@ export const api = {
   patch: <T>(path: string, body?: unknown, formData?: FormData) =>
     request<T>(path, { method: "PATCH", body, formData }),
   delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
+  upload: <T>(
+    path: string,
+    formData: FormData,
+    options: { method?: "POST" | "PATCH"; onProgress?: (percent: number) => void } = {},
+  ) => uploadRequest<T>(path, formData, options.method ?? "POST", options.onProgress),
 };
 
 export function errorMessage(error: unknown): string {

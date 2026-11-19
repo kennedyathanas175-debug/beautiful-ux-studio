@@ -371,9 +371,9 @@ function NewsAndAnnouncements({
                   params={{ slug: i.slug }}
                   className="group grid grid-cols-[96px_minmax(0,1fr)] gap-4 py-4 sm:grid-cols-[160px_minmax(0,1fr)]"
                 >
-                  {i.image ? (
+                  {i.image || i.previewImage ? (
                     <img
-                      src={i.image}
+                      src={(i.image ?? i.previewImage) as string}
                       alt=""
                       width={1200}
                       height={800}
@@ -522,9 +522,9 @@ function Featured({ data }: { data: HomeData }) {
         className="group card-interactive grid overflow-hidden rounded-lg border bg-card shadow-card md:grid-cols-[1.15fr_1fr]"
       >
         <div className="relative aspect-[16/10] overflow-hidden md:aspect-auto">
-          {spot.image ? (
+          {spot.image || spot.previewImage ? (
             <img
-              src={spot.image}
+              src={(spot.image ?? spot.previewImage) as string}
               alt={spot.title}
               width={1200}
               height={800}

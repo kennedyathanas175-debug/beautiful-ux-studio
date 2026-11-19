@@ -276,7 +276,7 @@ class DashboardView(APIView):
     def get(self, request):
         user = request.user
         innovations = user.innovations.select_related("category", "creator", "institution").prefetch_related(
-            "team"
+            "team", "media"
         )
         my_innovations = innovations.order_by("-updated_at")[:5]
         received_pending = user.received_collaboration_requests.filter(status="pending").select_related(

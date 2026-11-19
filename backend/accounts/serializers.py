@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from urllib.parse import urljoin
+
 from django.conf import settings
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
@@ -28,6 +30,8 @@ def _photo_url(obj, request):
     if not obj.avatar:
         return None
     url = obj.avatar.url
+    if settings.API_PUBLIC_URL:
+        return urljoin(settings.API_PUBLIC_URL + "/", url.lstrip("/"))
     return request.build_absolute_uri(url) if request else url
 
 
@@ -160,7 +164,7 @@ class PublicProfileSerializer(UserSerializer):
             | obj.team_innovations.filter(status="published")
         ).distinct().order_by("-published_at")
         return InnovationReadSerializer(
-            projects.select_related("category", "creator", "institution").prefetch_related("team", "institution__focus"),
+            projects.select_related("category", "creator", "institution").prefetch_related("team", "institution__focus", "media"),
             many=True,
             context=self.context,
         ).data

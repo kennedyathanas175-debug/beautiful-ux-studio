@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+from pathlib import Path
+from urllib.parse import urljoin
+
 from django.conf import settings
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Count, Q
+from django.urls import reverse
 from rest_framework import serializers
 
 from accounts.models import Notification, User
@@ -10,20 +14,40 @@ from accounts.serializers import UserSummarySerializer
 from core.constants import INSTITUTION_TYPES, TANZANIA_REGIONS
 from core.serializers import NullableSlugRelatedField
 from core.utils import clean_string_list
+from .media import (
+    MediaValidationError,
+    generate_thumbnail,
+    validate_image_upload,
+    validate_video_poster,
+    validate_video_upload,
+)
 from .models import (
     Category,
     CollaborationRequest,
     Comment,
     Innovation,
+    InnovationMedia,
     Institution,
     Report,
 )
 
 
-def _absolute(request, url: str | None) -> str | None:
-    if not url:
+def _public_absolute(request, path: str | None) -> str | None:
+    if not path:
         return None
-    return request.build_absolute_uri(url) if request else url
+    configured = settings.API_PUBLIC_URL
+    if configured:
+        return urljoin(configured + "/", path.lstrip("/"))
+    return request.build_absolute_uri(path) if request else path
+
+
+def _absolute(request, url: str | None) -> str | None:
+    return _public_absolute(request, url)
+
+
+def _media_url(request, view_name: str, media: InnovationMedia) -> str:
+    path = reverse(view_name, kwargs={"media_id": media.pk})
+    return _public_absolute(request, path)
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -108,12 +132,49 @@ class InstitutionWriteSerializer(serializers.ModelSerializer):
         return instance
 
 
+class InnovationMediaSerializer(serializers.ModelSerializer):
+    url = serializers.SerializerMethodField()
+    thumbnailUrl = serializers.SerializerMethodField()
+    originalFilename = serializers.CharField(source="original_filename", read_only=True)
+    fileSize = serializers.IntegerField(source="file_size", read_only=True)
+    mimeType = serializers.CharField(source="mime_type", read_only=True)
+    uploadedAt = serializers.DateTimeField(source="uploaded_at", read_only=True)
+
+    class Meta:
+        model = InnovationMedia
+        fields = [
+            "id",
+            "kind",
+            "designation",
+            "url",
+            "thumbnailUrl",
+            "originalFilename",
+            "fileSize",
+            "mimeType",
+            "uploadedAt",
+            "order",
+        ]
+
+    def get_url(self, obj):
+        return _media_url(self.context.get("request"), "innovation-media-file", obj)
+
+    def get_thumbnailUrl(self, obj):
+        if obj.thumbnail:
+            return _media_url(self.context.get("request"), "innovation-media-thumbnail", obj)
+        if obj.kind == InnovationMedia.Kind.IMAGE:
+            return _media_url(self.context.get("request"), "innovation-media-file", obj)
+        return None
+
+
 class InnovationReadSerializer(serializers.ModelSerializer):
     category = serializers.CharField(source="category_id", read_only=True)
     creator = UserSummarySerializer(read_only=True)
     team = UserSummarySerializer(many=True, read_only=True)
     institution = serializers.SerializerMethodField()
     image = serializers.SerializerMethodField()
+    media = serializers.SerializerMethodField()
+    previewImage = serializers.SerializerMethodField()
+    mediaCounts = serializers.SerializerMethodField()
     likes = serializers.SerializerMethodField()
     comments = serializers.SerializerMethodField()
     publishedAt = serializers.DateTimeField(source="published_at", read_only=True)
@@ -133,6 +194,9 @@ class InnovationReadSerializer(serializers.ModelSerializer):
             "category",
             "stage",
             "image",
+            "media",
+            "previewImage",
+            "mediaCounts",
             "creator",
             "team",
             "institution",
@@ -158,6 +222,34 @@ class InnovationReadSerializer(serializers.ModelSerializer):
         if not obj.image:
             return None
         return _absolute(request, obj.image.url)
+
+    def _media_items(self, obj):
+        prefetched = getattr(obj, "_prefetched_objects_cache", {})
+        if "media" in prefetched:
+            return list(prefetched["media"])
+        return list(obj.media.all())
+
+    def get_media(self, obj):
+        return InnovationMediaSerializer(
+            self._media_items(obj), many=True, context=self.context
+        ).data
+
+    def get_previewImage(self, obj):
+        request = self.context.get("request")
+        images = [item for item in self._media_items(obj) if item.kind == InnovationMedia.Kind.IMAGE]
+        if not images:
+            return None
+        first = images[0]
+        if first.thumbnail:
+            return _media_url(request, "innovation-media-thumbnail", first)
+        return _media_url(request, "innovation-media-file", first)
+
+    def get_mediaCounts(self, obj):
+        items = self._media_items(obj)
+        return {
+            "images": sum(1 for item in items if item.kind == InnovationMedia.Kind.IMAGE),
+            "videos": sum(1 for item in items if item.kind == InnovationMedia.Kind.VIDEO),
+        }
 
     def get_likes(self, obj):
         live = getattr(obj, "live_likes", None)
@@ -213,6 +305,24 @@ class InnovationWriteSerializer(serializers.ModelSerializer):
     teamEmails = serializers.ListField(
         child=serializers.EmailField(), required=False, write_only=True, max_length=20
     )
+    images = serializers.ListField(
+        child=serializers.FileField(), required=False, write_only=True,
+        max_length=settings.MAX_INNOVATION_MEDIA_IMAGES,
+    )
+    videos = serializers.ListField(
+        child=serializers.FileField(), required=False, write_only=True,
+        max_length=settings.MAX_INNOVATION_MEDIA_VIDEOS,
+    )
+    videoPosters = serializers.ListField(
+        child=serializers.FileField(), required=False, write_only=True,
+        max_length=settings.MAX_INNOVATION_MEDIA_VIDEOS,
+    )
+    primaryVideoIndex = serializers.IntegerField(required=False, min_value=0, max_value=1)
+    primaryVideoId = serializers.IntegerField(required=False, min_value=1)
+    removeMediaIds = serializers.ListField(
+        child=serializers.IntegerField(min_value=1), required=False, write_only=True,
+        max_length=settings.MAX_INNOVATION_MEDIA_IMAGES + settings.MAX_INNOVATION_MEDIA_VIDEOS,
+    )
     status = serializers.ChoiceField(
         choices=[Innovation.Status.DRAFT, Innovation.Status.PUBLISHED],
         required=False,
@@ -236,6 +346,12 @@ class InnovationWriteSerializer(serializers.ModelSerializer):
             "link",
             "status",
             "teamEmails",
+            "images",
+            "videos",
+            "videoPosters",
+            "primaryVideoIndex",
+            "primaryVideoId",
+            "removeMediaIds",
         ]
 
     def validate_image(self, value):
@@ -273,8 +389,177 @@ class InnovationWriteSerializer(serializers.ModelSerializer):
             )
         return users
 
+    def validate_images(self, value):
+        for index, upload in enumerate(value):
+            try:
+                validate_image_upload(upload, label=f"Image {index + 1}")
+            except MediaValidationError as exc:
+                raise serializers.ValidationError(str(exc)) from None
+        return value
+
+    def validate_videos(self, value):
+        for index, upload in enumerate(value):
+            try:
+                validate_video_upload(upload, label=f"Video {index + 1}")
+            except MediaValidationError as exc:
+                raise serializers.ValidationError(str(exc)) from None
+        return value
+
+    def validate_videoPosters(self, value):
+        for index, upload in enumerate(value):
+            try:
+                validate_video_poster(upload)
+            except MediaValidationError as exc:
+                raise serializers.ValidationError(str(exc)) from None
+        return value
+
+    def validate(self, attrs):
+        instance = self.instance
+        remove_ids = set(attrs.get("removeMediaIds") or [])
+        new_images = attrs.get("images") or []
+        new_videos = attrs.get("videos") or []
+        posters = attrs.get("videoPosters") or []
+        existing = list(instance.media.all()) if instance else []
+        existing_ids = {item.id for item in existing}
+
+        if remove_ids and not instance:
+            raise serializers.ValidationError({"removeMediaIds": "There are no saved media files to remove."})
+        unknown_ids = remove_ids - existing_ids
+        if unknown_ids:
+            raise serializers.ValidationError(
+                {"removeMediaIds": "You can only remove media that belongs to this innovation."}
+            )
+        remaining = [item for item in existing if item.id not in remove_ids]
+        image_count = sum(1 for item in remaining if item.kind == InnovationMedia.Kind.IMAGE) + len(new_images)
+        video_count = sum(1 for item in remaining if item.kind == InnovationMedia.Kind.VIDEO) + len(new_videos)
+        if image_count > settings.MAX_INNOVATION_MEDIA_IMAGES:
+            raise serializers.ValidationError(
+                {"images": f"You can have at most {settings.MAX_INNOVATION_MEDIA_IMAGES} images per innovation."}
+            )
+        if video_count > settings.MAX_INNOVATION_MEDIA_VIDEOS:
+            raise serializers.ValidationError(
+                {"videos": f"You can have at most {settings.MAX_INNOVATION_MEDIA_VIDEOS} videos per innovation."}
+            )
+        if posters and len(posters) != len(new_videos):
+            raise serializers.ValidationError(
+                {"videoPosters": "A poster is required for every newly uploaded video."}
+            )
+        primary_index = attrs.get("primaryVideoIndex")
+        primary_id = attrs.get("primaryVideoId")
+        if primary_index is not None and primary_id is not None:
+            raise serializers.ValidationError("Choose a single primary video.")
+        if primary_index is not None and primary_index >= len(new_videos):
+            raise serializers.ValidationError({"primaryVideoIndex": "Choose a valid new video."})
+        if primary_id is not None:
+            remaining_video_ids = {
+                item.id for item in remaining if item.kind == InnovationMedia.Kind.VIDEO
+            }
+            if primary_id not in remaining_video_ids:
+                raise serializers.ValidationError(
+                    {"primaryVideoId": "Choose a video attached to this innovation."}
+                )
+        attrs["_media_plan"] = {
+            "remove_ids": remove_ids,
+            "images": new_images,
+            "videos": new_videos,
+            "posters": posters,
+            "primary_video_index": primary_index,
+            "primary_video_id": primary_id,
+        }
+        return attrs
+
+    def _apply_media(self, innovation, plan):
+        if not plan:
+            return
+        if plan["remove_ids"]:
+            innovation.media.filter(id__in=plan["remove_ids"]).delete()
+
+        new_images = []
+        for index, upload in enumerate(plan["images"]):
+            mime = validate_image_upload(upload, label=f"Image {index + 1}")
+            media = InnovationMedia.objects.create(
+                innovation=innovation,
+                kind=InnovationMedia.Kind.IMAGE,
+                designation=InnovationMedia.Designation.GALLERY,
+                file=upload,
+                original_filename=Path(upload.name).name[:255],
+                file_size=getattr(upload, "size", 0),
+                mime_type=mime,
+                order=innovation.media.filter(kind=InnovationMedia.Kind.IMAGE).count() + index,
+            )
+            generate_thumbnail(media)
+            new_images.append(media)
+
+        new_videos = []
+        for index, upload in enumerate(plan["videos"]):
+            mime = validate_video_upload(upload, label=f"Video {index + 1}")
+            media = InnovationMedia.objects.create(
+                innovation=innovation,
+                kind=InnovationMedia.Kind.VIDEO,
+                designation=InnovationMedia.Designation.DEMO,
+                file=upload,
+                original_filename=Path(upload.name).name[:255],
+                file_size=getattr(upload, "size", 0),
+                mime_type=mime,
+                order=innovation.media.filter(kind=InnovationMedia.Kind.VIDEO).count() + index,
+            )
+            if plan["posters"]:
+                generate_thumbnail(media, source=plan["posters"][index])
+            new_videos.append(media)
+
+        images = list(
+            innovation.media.filter(kind=InnovationMedia.Kind.IMAGE).order_by("order", "id")
+        )
+        for index, media in enumerate(images):
+            if media.order != index:
+                media.order = index
+                media.save(update_fields=["order"])
+
+        videos = list(
+            innovation.media.filter(kind=InnovationMedia.Kind.VIDEO).order_by("order", "id")
+        )
+        primary = None
+        if plan["primary_video_id"]:
+            primary = next((item for item in videos if item.id == plan["primary_video_id"]), None)
+        elif plan["primary_video_index"] is not None:
+            index = plan["primary_video_index"]
+            primary = new_videos[index] if index < len(new_videos) else None
+        else:
+            primary = next(
+                (item for item in videos if item.designation == InnovationMedia.Designation.PITCH),
+                None,
+            )
+        if primary is None and videos:
+            primary = videos[0]
+        for index, media in enumerate(videos):
+            designation = (
+                InnovationMedia.Designation.PITCH
+                if primary and media.id == primary.id
+                else InnovationMedia.Designation.DEMO
+            )
+            if media.order != index or media.designation != designation:
+                media.order = index
+                media.designation = designation
+                media.save(update_fields=["order", "designation"])
+
+        if hasattr(innovation, "_prefetched_objects_cache"):
+            innovation._prefetched_objects_cache.pop("media", None)
+
+    def _pop_media_fields(self, validated_data):
+        for field in (
+            "images",
+            "videos",
+            "videoPosters",
+            "primaryVideoIndex",
+            "primaryVideoId",
+            "removeMediaIds",
+        ):
+            validated_data.pop(field, None)
+
     def create(self, validated_data):
         team_emails = validated_data.pop("teamEmails", [])
+        media_plan = validated_data.pop("_media_plan", None)
+        self._pop_media_fields(validated_data)
         team = self._resolve_team(team_emails)
         creator = self.context["request"].user
         if "status" not in validated_data:
@@ -283,16 +568,22 @@ class InnovationWriteSerializer(serializers.ModelSerializer):
                 if settings.AUTO_PUBLISH_INNOVATIONS
                 else Innovation.Status.DRAFT
             )
-        innovation = Innovation.objects.create(creator=creator, **validated_data)
-        innovation.team.set([member for member in team if member.pk != creator.pk])
+        with transaction.atomic():
+            innovation = Innovation.objects.create(creator=creator, **validated_data)
+            innovation.team.set([member for member in team if member.pk != creator.pk])
+            self._apply_media(innovation, media_plan)
         return innovation
 
     def update(self, instance, validated_data):
         team_emails = validated_data.pop("teamEmails", None)
-        instance = super().update(instance, validated_data)
-        if team_emails is not None:
-            team = self._resolve_team(team_emails)
-            instance.team.set([member for member in team if member.pk != instance.creator_id])
+        media_plan = validated_data.pop("_media_plan", None)
+        self._pop_media_fields(validated_data)
+        with transaction.atomic():
+            instance = super().update(instance, validated_data)
+            if team_emails is not None:
+                team = self._resolve_team(team_emails)
+                instance.team.set([member for member in team if member.pk != instance.creator_id])
+            self._apply_media(instance, media_plan)
         return instance
 
 
