@@ -1,0 +1,12 @@
+.env
+*.sqlite3
+db.sqlite3
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+staticfiles/
+media/uploads/
+media/avatars/
+media/innovations/
+test_media/

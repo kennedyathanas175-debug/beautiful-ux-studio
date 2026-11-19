@@ -21,6 +21,7 @@ const en = {
   "nav.institutions": "Institutions",
   "nav.opportunities": "Opportunities",
   "nav.about": "About TIE",
+  "nav.dashboard": "Dashboard",
   "nav.login": "Log in",
   "nav.join": "Join TIE",
   "nav.menu": "Menu",
@@ -46,7 +47,8 @@ const en = {
 
   "sec.featured.eyebrow": "Featured",
   "sec.featured.title": "Innovations shaping Tanzania",
-  "sec.featured.body": "Hand-picked projects with real-world traction, from field pilots to products in market.",
+  "sec.featured.body":
+    "Hand-picked projects with real-world traction, from field pilots to products in market.",
   "sec.trending.eyebrow": "Trending this week",
   "sec.trending.title": "What the community is watching",
   "sec.categories.eyebrow": "Categories",
@@ -64,13 +66,16 @@ const en = {
   "sec.how.eyebrow": "How TIE works",
   "sec.how.title": "From idea to impact in three steps",
   "how.1.title": "Showcase your work",
-  "how.1.body": "Publish your innovation with its problem, solution, stage and team — ownership always stays yours.",
+  "how.1.body":
+    "Publish your innovation with its problem, solution, stage and team — ownership always stays yours.",
   "how.2.title": "Connect & collaborate",
-  "how.2.body": "Find co-founders, mentors, researchers and institutions who can help you move faster.",
+  "how.2.body":
+    "Find co-founders, mentors, researchers and institutions who can help you move faster.",
   "how.3.title": "Grow with opportunities",
   "how.3.body": "Apply to challenges, grants and programs matched to your sector and stage.",
   "cta.title": "Your idea belongs in Tanzania's innovation story.",
-  "cta.body": "Join thousands of innovators building solutions for agriculture, health, energy, education and beyond.",
+  "cta.body":
+    "Join thousands of innovators building solutions for agriculture, health, energy, education and beyond.",
   "common.viewAll": "View all",
   "common.viewProfile": "View profile",
   "common.projects": "projects",
@@ -140,6 +145,7 @@ const sw: Record<TKey, string> = {
   "nav.institutions": "Taasisi",
   "nav.opportunities": "Fursa",
   "nav.about": "Kuhusu TIE",
+  "nav.dashboard": "Dashibodi",
   "nav.login": "Ingia",
   "nav.join": "Jiunge na TIE",
   "nav.menu": "Menyu",
@@ -165,7 +171,8 @@ const sw: Record<TKey, string> = {
 
   "sec.featured.eyebrow": "Vilivyochaguliwa",
   "sec.featured.title": "Ubunifu unaoijenga Tanzania",
-  "sec.featured.body": "Miradi iliyochaguliwa yenye matokeo halisi, kutoka majaribio ya shambani hadi bidhaa sokoni.",
+  "sec.featured.body":
+    "Miradi iliyochaguliwa yenye matokeo halisi, kutoka majaribio ya shambani hadi bidhaa sokoni.",
   "sec.trending.eyebrow": "Vinavyovuma wiki hii",
   "sec.trending.title": "Kinachofuatiliwa na jamii",
   "sec.categories.eyebrow": "Makundi",
@@ -183,13 +190,16 @@ const sw: Record<TKey, string> = {
   "sec.how.eyebrow": "Jinsi TIE inavyofanya kazi",
   "sec.how.title": "Kutoka wazo hadi matokeo kwa hatua tatu",
   "how.1.title": "Onyesha kazi yako",
-  "how.1.body": "Chapisha ubunifu wako pamoja na tatizo, suluhisho, hatua na timu — umiliki unabaki kuwa wako daima.",
+  "how.1.body":
+    "Chapisha ubunifu wako pamoja na tatizo, suluhisho, hatua na timu — umiliki unabaki kuwa wako daima.",
   "how.2.title": "Unganika na shirikiana",
-  "how.2.body": "Pata waanzilishi wenza, washauri, watafiti na taasisi wanaoweza kukusaidia kwenda kasi.",
+  "how.2.body":
+    "Pata waanzilishi wenza, washauri, watafiti na taasisi wanaoweza kukusaidia kwenda kasi.",
   "how.3.title": "Kua kupitia fursa",
   "how.3.body": "Omba changamoto, ruzuku na programu zinazoendana na sekta na hatua yako.",
   "cta.title": "Wazo lako lina nafasi katika hadithi ya ubunifu ya Tanzania.",
-  "cta.body": "Jiunge na maelfu ya wabunifu wanaojenga suluhisho kwa kilimo, afya, nishati, elimu na zaidi.",
+  "cta.body":
+    "Jiunge na maelfu ya wabunifu wanaojenga suluhisho kwa kilimo, afya, nishati, elimu na zaidi.",
   "common.viewAll": "Tazama yote",
   "common.viewProfile": "Tazama wasifu",
   "common.projects": "miradi",

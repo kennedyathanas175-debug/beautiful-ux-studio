@@ -1,17 +1,55 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowRight, Search, Sparkles, Users, Rocket, Handshake, BadgeCheck, MapPin, TrendingUp, Lightbulb, Building2, Map, ChevronLeft, ChevronRight, Megaphone } from "lucide-react";
+import {
+  ArrowRight,
+  Search,
+  Sparkles,
+  Users,
+  Rocket,
+  Handshake,
+  BadgeCheck,
+  MapPin,
+  TrendingUp,
+  Lightbulb,
+  Building2,
+  Map,
+  ChevronLeft,
+  ChevronRight,
+  Megaphone,
+} from "lucide-react";
 import { photos } from "@/data/photos";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { categories, impactStats, innovations, innovators, institutions, opportunities, getInnovator, getInstitution, daysUntil, type Opportunity } from "@/data/catalog";
+import type { HomeData, Innovation, Opportunity } from "@/lib/api-types";
 import { usePrefs } from "@/lib/prefs";
-import { CategoryIcon, SectionHeader, StageBadge, Avatar, useCategoryLabel } from "@/components/site/bits";
-import { InnovationCard, InnovatorCard, OpportunityCard, TrendingRow, InstitutionMonogram, LikeSaveActions } from "@/components/site/cards";
+import {
+  CategoryIcon,
+  SectionHeader,
+  StageBadge,
+  Avatar,
+  useCategoryLabel,
+} from "@/components/site/bits";
+import {
+  InnovationCard,
+  InnovatorCard,
+  OpportunityCard,
+  TrendingRow,
+  InstitutionMonogram,
+  LikeSaveActions,
+} from "@/components/site/cards";
 import { OpportunityDialog } from "@/components/site/OpportunityDialog";
+import { ErrorState, PageLoader } from "@/components/site/states";
+import { fetchHome, useHome } from "@/lib/queries";
 
 export const Route = createFileRoute("/")({
+  loader: async () => {
+    try {
+      return { home: await fetchHome() };
+    } catch {
+      return { home: null };
+    }
+  },
   head: () => ({
     meta: [
       { title: "TIE – Tanzania Innovation Ecosystem | Discover. Connect. Innovate." },
@@ -23,29 +61,50 @@ export const Route = createFileRoute("/")({
       { property: "og:title", content: "TIE – Tanzania Innovation Ecosystem" },
       {
         property: "og:description",
-        content: "Discover. Connect. Innovate. Transform Tanzania. The national platform for innovators, researchers and institutions.",
+        content:
+          "Discover. Connect. Innovate. Transform Tanzania. The national platform for innovators, researchers and institutions.",
       },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
+      { property: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: HomePage,
 });
 
 function HomePage() {
+  const { home } = Route.useLoaderData();
+  const { data, isLoading, isError, refetch } = useHome(home ?? undefined);
   const [opp, setOpp] = useState<Opportunity | null>(null);
+
+  if (!data) {
+    return (
+      <>
+        <Hero />
+        {isLoading ? (
+          <PageLoader label="Loading the innovation ecosystem…" />
+        ) : (
+          <ErrorState
+            title="The ecosystem feed is unavailable"
+            message={isError ? "We could not reach the TIE platform API." : undefined}
+            onRetry={() => void refetch()}
+          />
+        )}
+      </>
+    );
+  }
+
   return (
     <>
       <Hero />
       <QuickLinks />
-      <NewsAndAnnouncements onOpen={setOpp} />
-      <Featured />
-      <InstitutionStrip />
-      <Categories />
-      <Trending />
-      <Impact />
-      <FeaturedInnovators />
-      <Opportunities onOpen={setOpp} />
+      <NewsAndAnnouncements data={data} onOpen={setOpp} />
+      <Featured data={data} />
+      <InstitutionStrip data={data} />
+      <Categories data={data} />
+      <Trending data={data} />
+      <Impact data={data} />
+      <FeaturedInnovators data={data} />
+      <Opportunities data={data!} onOpen={setOpp} />
       <JoinCta />
       <OpportunityDialog opp={opp} onClose={() => setOpp(null)} />
     </>
@@ -58,7 +117,13 @@ function Hero() {
   const [q, setQ] = useState("");
   const [idx, setIdx] = useState(0);
   const [paused, setPaused] = useState(false);
-  const slides = [photos.darDusk, photos.kilimanjaro, photos.stoneTown, photos.arusha, photos.dodoma];
+  const slides = [
+    photos.darDusk,
+    photos.kilimanjaro,
+    photos.stoneTown,
+    photos.arusha,
+    photos.dodoma,
+  ];
   const popular = ["Solar", "Agritech", "Kiswahili AI", "Telemedicine"];
 
   useEffect(() => {
@@ -68,7 +133,7 @@ function Hero() {
   }, [paused, slides.length]);
 
   const go = (d: number) => setIdx((i) => (i + d + slides.length) % slides.length);
-  const current = slides[idx];
+  const current = slides[idx]!;
 
   return (
     <section
@@ -101,18 +166,22 @@ function Hero() {
           <h1 className="mt-5 text-[2.3rem] font-extrabold leading-[1.06] sm:text-6xl">
             {t("hero.title.1")} <span className="text-gold">{t("hero.title.2")}</span>
           </h1>
-          <p className="mt-5 max-w-xl text-base leading-relaxed text-navy-foreground/85 sm:text-lg">{t("hero.body")}</p>
+          <p className="mt-5 max-w-xl text-base leading-relaxed text-navy-foreground/85 sm:text-lg">
+            {t("hero.body")}
+          </p>
 
           <form
             role="search"
             onSubmit={(e) => {
               e.preventDefault();
-              navigate({ to: "/explore", search: q.trim() ? { q: q.trim() } : {} });
+              void navigate({ to: "/explore", search: q.trim() ? { q: q.trim() } : {} });
             }}
             className="mt-7 flex max-w-xl items-center gap-2 rounded-md bg-card p-1.5 shadow-lift focus-within:ring-2 focus-within:ring-gold"
           >
             <Search className="ml-2.5 size-5 shrink-0 text-muted-foreground" aria-hidden />
-            <label htmlFor="hero-search" className="sr-only">{t("hero.search")}</label>
+            <label htmlFor="hero-search" className="sr-only">
+              {t("hero.search")}
+            </label>
             <input
               id="hero-search"
               value={q}
@@ -130,7 +199,7 @@ function Hero() {
               <Link
                 key={p}
                 to="/explore"
-                search={{ q: p.split(" ")[0] }}
+                search={{ q: p.split(" ")[0] ?? "" }}
                 className="rounded border border-navy-foreground/25 px-2.5 py-1 text-xs font-medium text-navy-foreground transition-colors hover:border-gold hover:text-gold"
               >
                 {p}
@@ -140,21 +209,33 @@ function Hero() {
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Button asChild size="lg" variant="gold" className="rounded">
-              <Link to="/explore">{t("hero.cta.explore")} <ArrowRight /></Link>
+              <Link to="/explore">
+                {t("hero.cta.explore")} <ArrowRight />
+              </Link>
             </Button>
             <Button asChild size="lg" variant="onNavy" className="rounded">
-              <Link to="/auth" search={{ mode: "join" }}>{t("hero.cta.join")}</Link>
+              <Link to="/auth" search={{ mode: "join" }}>
+                {t("hero.cta.join")}
+              </Link>
             </Button>
           </div>
         </div>
 
-        {/* Slider controls */}
         <div className="absolute bottom-6 left-5 right-5 flex items-center justify-between gap-4 sm:left-8 sm:right-8">
           <div className="flex min-w-0 items-center gap-3">
             <span className="hidden h-px w-8 bg-gold sm:block" />
-            <a href={current.source} target="_blank" rel="noreferrer" className="truncate text-xs text-navy-foreground/80 hover:text-navy-foreground" aria-live="polite">
+            <a
+              href={current.source}
+              target="_blank"
+              rel="noreferrer"
+              className="truncate text-xs text-navy-foreground/80 hover:text-navy-foreground"
+              aria-live="polite"
+            >
               <MapPin className="mr-1 inline size-3.5 text-gold" />
-              {current.place} <span className="text-navy-foreground/50">· {t("photo.credit")}: {current.credit}, {current.license}</span>
+              {current.place}{" "}
+              <span className="text-navy-foreground/50">
+                · {t("photo.credit")}: {current.credit}, {current.license}
+              </span>
             </a>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -166,14 +247,29 @@ function Hero() {
                   onClick={() => setIdx(i)}
                   aria-label={`Slide ${i + 1}: ${p.place}`}
                   aria-current={i === idx}
-                  className={cn("h-1.5 rounded-full transition-all", i === idx ? "w-7 bg-gold" : "w-3 bg-navy-foreground/40 hover:bg-navy-foreground/70")}
+                  className={cn(
+                    "h-1.5 rounded-full transition-all",
+                    i === idx
+                      ? "w-7 bg-gold"
+                      : "w-3 bg-navy-foreground/40 hover:bg-navy-foreground/70",
+                  )}
                 />
               ))}
             </div>
-            <button type="button" onClick={() => go(-1)} aria-label="Previous slide" className="grid size-9 place-items-center rounded border border-navy-foreground/25 hover:border-gold hover:text-gold">
+            <button
+              type="button"
+              onClick={() => go(-1)}
+              aria-label="Previous slide"
+              className="grid size-9 place-items-center rounded border border-navy-foreground/25 hover:border-gold hover:text-gold"
+            >
               <ChevronLeft className="size-4" />
             </button>
-            <button type="button" onClick={() => go(1)} aria-label="Next slide" className="grid size-9 place-items-center rounded border border-navy-foreground/25 hover:border-gold hover:text-gold">
+            <button
+              type="button"
+              onClick={() => go(1)}
+              aria-label="Next slide"
+              className="grid size-9 place-items-center rounded border border-navy-foreground/25 hover:border-gold hover:text-gold"
+            >
               <ChevronRight className="size-4" />
             </button>
           </div>
@@ -187,9 +283,24 @@ function QuickLinks() {
   const { t } = usePrefs();
   const items = [
     { to: "/explore" as const, icon: Lightbulb, title: t("nav.explore"), body: t("quick.explore") },
-    { to: "/innovators" as const, icon: Users, title: t("nav.innovators"), body: t("quick.innovators") },
-    { to: "/institutions" as const, icon: Building2, title: t("nav.institutions"), body: t("quick.institutions") },
-    { to: "/opportunities" as const, icon: Rocket, title: t("nav.opportunities"), body: t("quick.opportunities") },
+    {
+      to: "/innovators" as const,
+      icon: Users,
+      title: t("nav.innovators"),
+      body: t("quick.innovators"),
+    },
+    {
+      to: "/institutions" as const,
+      icon: Building2,
+      title: t("nav.institutions"),
+      body: t("quick.institutions"),
+    },
+    {
+      to: "/opportunities" as const,
+      icon: Rocket,
+      title: t("nav.opportunities"),
+      body: t("quick.opportunities"),
+    },
   ];
   return (
     <section aria-label={t("quick.title")} className="container-tie relative z-10 -mt-10 sm:-mt-12">
@@ -209,8 +320,12 @@ function QuickLinks() {
               <x.icon className="size-5" />
             </span>
             <span className="min-w-0">
-              <span className="block text-sm font-bold text-foreground sm:text-[0.95rem]">{x.title}</span>
-              <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">{x.body}</span>
+              <span className="block text-sm font-bold text-foreground sm:text-[0.95rem]">
+                {x.title}
+              </span>
+              <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
+                {x.body}
+              </span>
             </span>
           </Link>
         ))}
@@ -219,78 +334,158 @@ function QuickLinks() {
   );
 }
 
-function NewsAndAnnouncements({ onOpen }: { onOpen: (o: Opportunity) => void }) {
+function NewsAndAnnouncements({
+  data,
+  onOpen,
+}: {
+  data: HomeData;
+  onOpen: (o: Opportunity) => void;
+}) {
   const { t, lang } = usePrefs();
   const catLabel = useCategoryLabel();
-  const latest = [...innovations].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt)).slice(0, 4);
-  const upcoming = [...opportunities].filter((o) => daysUntil(o.deadline) >= 0).sort((a, b) => a.deadline.localeCompare(b.deadline)).slice(0, 5);
-  const fmtDate = (d: string, opts: Intl.DateTimeFormatOptions) => new Date(d).toLocaleDateString(lang === "sw" ? "sw-TZ" : "en-GB", opts);
+  const latest = data.latest;
+  const upcoming = data.announcements;
+  const fmtDate = (d: string, opts: Intl.DateTimeFormatOptions) =>
+    new Date(d).toLocaleDateString(lang === "sw" ? "sw-TZ" : "en-GB", opts);
   return (
     <section className="container-tie grid gap-8 pt-16 sm:pt-20 lg:grid-cols-[minmax(0,1fr)_380px]">
       <div className="min-w-0">
         <div className="mb-5 flex items-end justify-between gap-4 border-b-2 border-primary pb-3">
-          <h2 className="text-xl font-bold uppercase tracking-wide text-foreground">{lang === "sw" ? "Ubunifu mpya" : "Latest innovations"}</h2>
-          <Link to="/explore" className="shrink-0 text-sm font-semibold text-azure hover:underline">{t("common.viewAll")} →</Link>
+          <h2 className="text-xl font-bold uppercase tracking-wide text-foreground">
+            {lang === "sw" ? "Ubunifu mpya" : "Latest innovations"}
+          </h2>
+          <Link to="/explore" className="shrink-0 text-sm font-semibold text-azure hover:underline">
+            {t("common.viewAll")} →
+          </Link>
         </div>
-        <ul className="divide-y">
-          {latest.map((i) => (
-            <li key={i.slug}>
-              <Link to="/innovations/$slug" params={{ slug: i.slug }} className="group grid grid-cols-[96px_minmax(0,1fr)] gap-4 py-4 sm:grid-cols-[160px_minmax(0,1fr)]">
-                <img src={i.image} alt="" width={1200} height={800} loading="lazy" className="aspect-[4/3] w-full rounded-md object-cover" />
-                <div className="min-w-0">
-                  <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    <span className="inline-flex items-center gap-1 font-semibold text-azure"><CategoryIcon id={i.category} className="size-3.5" />{catLabel(i.category)}</span>
-                    <span>· {fmtDate(i.publishedAt, { day: "numeric", month: "short", year: "numeric" })}</span>
-                  </p>
-                  <h3 className="mt-1 font-semibold text-foreground group-hover:text-azure group-hover:underline sm:text-lg">{i.title}</h3>
-                  <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{i.tagline}</p>
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        {latest.length === 0 ? (
+          <p className="py-8 text-sm text-muted-foreground">
+            No innovations have been published yet.
+          </p>
+        ) : (
+          <ul className="divide-y">
+            {latest.map((i) => (
+              <li key={i.slug}>
+                <Link
+                  to="/innovations/$slug"
+                  params={{ slug: i.slug }}
+                  className="group grid grid-cols-[96px_minmax(0,1fr)] gap-4 py-4 sm:grid-cols-[160px_minmax(0,1fr)]"
+                >
+                  {i.image ? (
+                    <img
+                      src={i.image}
+                      alt=""
+                      width={1200}
+                      height={800}
+                      loading="lazy"
+                      className="aspect-[4/3] w-full rounded-md object-cover"
+                    />
+                  ) : (
+                    <span className="aspect-[4/3] w-full rounded-md bg-navy-gradient" />
+                  )}
+                  <div className="min-w-0">
+                    <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <span className="inline-flex items-center gap-1 font-semibold text-azure">
+                        <CategoryIcon id={i.category} className="size-3.5" />
+                        {catLabel(i.category)}
+                      </span>
+                      <span>
+                        ·{" "}
+                        {fmtDate(i.publishedAt, {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </span>
+                    </p>
+                    <h3 className="mt-1 font-semibold text-foreground group-hover:text-azure group-hover:underline sm:text-lg">
+                      {i.title}
+                    </h3>
+                    <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{i.tagline}</p>
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <aside className="self-start overflow-hidden rounded-lg border bg-card shadow-card">
         <div className="flex items-center justify-between bg-primary px-5 py-3.5 text-primary-foreground dark:bg-navy dark:text-navy-foreground">
-          <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider"><Megaphone className="size-4 text-gold" /> {t("ann.title")}</h2>
+          <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider">
+            <Megaphone className="size-4 text-gold" /> {t("ann.title")}
+          </h2>
         </div>
-        <ul className="divide-y">
-          {upcoming.map((o) => (
-            <li key={o.id}>
-              <button type="button" onClick={() => onOpen(o)} className="group flex w-full gap-4 px-5 py-4 text-left transition-colors hover:bg-secondary">
-                <span className="grid w-12 shrink-0 place-items-center rounded-md border-t-4 border-gold bg-surface py-1.5 text-center leading-none">
-                  <span className="font-display text-lg font-bold text-foreground">{fmtDate(o.deadline, { day: "numeric" })}</span>
-                  <span className="mt-0.5 text-[0.6rem] font-bold uppercase text-muted-foreground">{fmtDate(o.deadline, { month: "short" })}</span>
-                </span>
-                <span className="min-w-0">
-                  <span className="block text-[0.65rem] font-bold uppercase tracking-wider text-azure">{o.type}</span>
-                  <span className="mt-0.5 block text-sm font-semibold leading-snug text-foreground group-hover:underline">{o.title}</span>
-                  <span className="mt-0.5 block text-xs text-muted-foreground">{daysUntil(o.deadline)} {t("common.daysLeft")}</span>
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-        <Link to="/opportunities" className="block border-t px-5 py-3 text-center text-sm font-semibold text-azure hover:bg-secondary">{t("ann.all")} →</Link>
+        {upcoming.length === 0 ? (
+          <p className="px-5 py-8 text-sm text-muted-foreground">
+            No open announcements right now.
+          </p>
+        ) : (
+          <ul className="divide-y">
+            {upcoming.map((o) => (
+              <li key={o.id}>
+                <button
+                  type="button"
+                  onClick={() => onOpen(o)}
+                  className="group flex w-full gap-4 px-5 py-4 text-left transition-colors hover:bg-secondary"
+                >
+                  <span className="grid w-12 shrink-0 place-items-center rounded-md border-t-4 border-gold bg-surface py-1.5 text-center leading-none">
+                    <span className="font-display text-lg font-bold text-foreground">
+                      {fmtDate(o.deadline, { day: "numeric" })}
+                    </span>
+                    <span className="mt-0.5 text-[0.6rem] font-bold uppercase text-muted-foreground">
+                      {fmtDate(o.deadline, { month: "short" })}
+                    </span>
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-[0.65rem] font-bold uppercase tracking-wider text-azure">
+                      {o.type}
+                    </span>
+                    <span className="mt-0.5 block text-sm font-semibold leading-snug text-foreground group-hover:underline">
+                      {o.title}
+                    </span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      {o.daysLeft} {t("common.daysLeft")}
+                    </span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <Link
+          to="/opportunities"
+          className="block border-t px-5 py-3 text-center text-sm font-semibold text-azure hover:bg-secondary"
+        >
+          {t("ann.all")} →
+        </Link>
       </aside>
     </section>
   );
 }
 
-function InstitutionStrip() {
+function InstitutionStrip({ data }: { data: HomeData }) {
   const { t } = usePrefs();
-  const row = [...institutions, ...institutions];
+  const row = [...data.institutions, ...data.institutions];
   return (
     <section aria-label={t("sec.institutions.title")} className="border-y bg-card py-6">
       <div className="container-tie flex flex-col gap-4 md:flex-row md:items-center md:gap-8">
-        <p className="shrink-0 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{t("sec.institutions.title")}</p>
+        <p className="shrink-0 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          {t("sec.institutions.title")}
+        </p>
         <div className="relative min-w-0 flex-1 overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_8%,black_92%,transparent)]">
           <div className="flex w-max animate-marquee gap-8 hover:[animation-play-state:paused]">
             {row.map((inst, i) => (
-              <Link key={inst.slug + i} to="/explore" search={{ institution: inst.slug }} className="flex shrink-0 items-center gap-2.5 opacity-80 transition-opacity hover:opacity-100">
+              <Link
+                key={inst.slug + i}
+                to="/explore"
+                search={{ institution: inst.slug }}
+                className="flex shrink-0 items-center gap-2.5 opacity-80 transition-opacity hover:opacity-100"
+              >
                 <InstitutionMonogram inst={inst} className="size-9 text-[0.62rem]" />
-                <span className="whitespace-nowrap text-sm font-semibold text-foreground">{inst.short}</span>
+                <span className="whitespace-nowrap text-sm font-semibold text-foreground">
+                  {inst.short}
+                </span>
               </Link>
             ))}
           </div>
@@ -300,13 +495,13 @@ function InstitutionStrip() {
   );
 }
 
-function Featured() {
+function Featured({ data }: { data: HomeData }) {
   const { t } = usePrefs();
   const catLabel = useCategoryLabel();
-  const featured = innovations.filter((i) => i.featured);
-  const [spot, ...rest] = featured;
-  const creator = getInnovator(spot.creator)!;
-  const inst = getInstitution(spot.institution);
+  const featured = data.featured;
+  const spot = featured[0];
+  if (!spot) return null;
+  const rest = featured.slice(1);
   return (
     <section className="container-tie py-16 sm:py-24">
       <SectionHeader
@@ -315,18 +510,32 @@ function Featured() {
         body={t("sec.featured.body")}
         action={
           <Button asChild variant="outline">
-            <Link to="/explore">{t("common.viewAll")} <ArrowRight /></Link>
+            <Link to="/explore">
+              {t("common.viewAll")} <ArrowRight />
+            </Link>
           </Button>
         }
       />
-      {/* Spotlight */}
       <Link
         to="/innovations/$slug"
         params={{ slug: spot.slug }}
         className="group card-interactive grid overflow-hidden rounded-lg border bg-card shadow-card md:grid-cols-[1.15fr_1fr]"
       >
         <div className="relative aspect-[16/10] overflow-hidden md:aspect-auto">
-          <img src={spot.image} alt={spot.title} width={1200} height={800} loading="lazy" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]" />
+          {spot.image ? (
+            <img
+              src={spot.image}
+              alt={spot.title}
+              width={1200}
+              height={800}
+              loading="lazy"
+              className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
+            />
+          ) : (
+            <div className="grid h-full min-h-64 place-items-center bg-navy-gradient">
+              <CategoryIcon id={spot.category} className="size-16 text-gold/60" />
+            </div>
+          )}
           <Badge variant="glass" className="absolute left-4 top-4">
             <CategoryIcon id={spot.category} className="size-3" /> {catLabel(spot.category)}
           </Badge>
@@ -336,69 +545,87 @@ function Featured() {
             <StageBadge stage={spot.stage} />
             <span className="text-xs text-muted-foreground">· {spot.region}</span>
           </div>
-          <h3 className="mt-4 text-2xl font-bold text-foreground group-hover:text-azure sm:text-3xl">{spot.title}</h3>
-          <p className="mt-3 text-[0.95rem] leading-relaxed text-muted-foreground">{spot.description}</p>
+          <h3 className="mt-4 text-2xl font-bold text-foreground group-hover:text-azure sm:text-3xl">
+            {spot.title}
+          </h3>
+          <p className="mt-3 text-[0.95rem] leading-relaxed text-muted-foreground">
+            {spot.description}
+          </p>
           <div className="mt-5 flex flex-wrap gap-1.5">
             {spot.tech.map((x) => (
-              <span key={x} className="rounded-md border bg-surface px-2 py-1 text-xs font-medium text-foreground">{x}</span>
+              <span
+                key={x}
+                className="rounded-md border bg-surface px-2 py-1 text-xs font-medium text-foreground"
+              >
+                {x}
+              </span>
             ))}
           </div>
           <div className="mt-auto flex items-center justify-between gap-3 border-t pt-5 mt-8">
             <div className="flex min-w-0 items-center gap-3">
-              <Avatar name={creator.name} photo={creator.photo} className="size-10 shrink-0 rounded-full" />
+              <Avatar
+                name={spot.creator.name}
+                photo={spot.creator.photo ?? undefined}
+                className="size-10 shrink-0 rounded-full"
+              />
               <div className="min-w-0 leading-tight">
-                <p className="truncate text-sm font-semibold text-foreground">{creator.name}</p>
-                <p className="truncate text-xs text-muted-foreground">{inst?.name}</p>
+                <p className="truncate text-sm font-semibold text-foreground">
+                  {spot.creator.name}
+                </p>
+                <p className="truncate text-xs text-muted-foreground">{spot.institution?.name}</p>
               </div>
             </div>
-            <LikeSaveActions id={spot.slug} likes={spot.likes} />
+            <LikeSaveActions id={spot.slug} likes={spot.likes} viewer={spot.viewer} />
           </div>
         </div>
       </Link>
-      <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {rest.map((i) => (
-          <InnovationCard key={i.slug} item={i} />
-        ))}
-      </div>
+      {rest.length > 0 && (
+        <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {rest.map((i) => (
+            <InnovationCard key={i.slug} item={i} />
+          ))}
+        </div>
+      )}
     </section>
   );
 }
 
-function Categories() {
+function Categories({ data }: { data: HomeData }) {
   const { t, lang } = usePrefs();
   return (
     <section className="border-y bg-card py-16 sm:py-20">
       <div className="container-tie">
         <SectionHeader eyebrow={t("sec.categories.eyebrow")} title={t("sec.categories.title")} />
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-          {categories.map((c) => {
-            const count = innovations.filter((i) => i.category === c.id).length;
-            return (
-              <Link
-                key={c.id}
-                to="/explore"
-                search={{ category: c.id }}
-                className="group flex flex-col gap-4 rounded-2xl border bg-background p-4 transition-all hover:-translate-y-0.5 hover:border-gold hover:shadow-card sm:flex-row sm:items-center sm:p-5"
-              >
-                <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-navy text-navy-foreground transition-colors group-hover:bg-gold group-hover:text-gold-foreground">
-                  <CategoryIcon id={c.id} className="size-5" />
+          {data.categories.map((c) => (
+            <Link
+              key={c.id}
+              to="/explore"
+              search={{ category: c.id }}
+              className="group flex flex-col gap-4 rounded-2xl border bg-background p-4 transition-all hover:-translate-y-0.5 hover:border-gold hover:shadow-card sm:flex-row sm:items-center sm:p-5"
+            >
+              <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-navy text-navy-foreground transition-colors group-hover:bg-gold group-hover:text-gold-foreground">
+                <CategoryIcon id={c.id} className="size-5" />
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-semibold text-foreground sm:text-[0.95rem]">
+                  {lang === "sw" ? c.sw : c.en}
                 </span>
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-semibold text-foreground sm:text-[0.95rem]">{lang === "sw" ? c.sw : c.en}</span>
-                  <span className="text-xs text-muted-foreground">{count} {t("common.innovations")}</span>
+                <span className="text-xs text-muted-foreground">
+                  {c.count} {t("common.innovations")}
                 </span>
-              </Link>
-            );
-          })}
+              </span>
+            </Link>
+          ))}
         </div>
       </div>
     </section>
   );
 }
 
-function Trending() {
+function Trending({ data }: { data: HomeData }) {
   const { t } = usePrefs();
-  const trending = [...innovations].filter((i) => i.trending).sort((a, b) => b.views - a.views).slice(0, 6);
+  const trending = data.trending.slice(0, 6);
   return (
     <section className="container-tie py-16 sm:py-24">
       <SectionHeader
@@ -406,7 +633,9 @@ function Trending() {
         title={t("sec.trending.title")}
         action={
           <Button asChild variant="ghost">
-            <Link to="/explore" search={{ sort: "popular" }}><TrendingUp /> {t("common.viewAll")}</Link>
+            <Link to="/explore" search={{ sort: "popular" }}>
+              <TrendingUp /> {t("common.viewAll")}
+            </Link>
           </Button>
         }
       />
@@ -419,14 +648,14 @@ function Trending() {
   );
 }
 
-function Impact() {
+function Impact({ data }: { data: HomeData }) {
   const { t } = usePrefs();
   const fmt = new Intl.NumberFormat("en");
   const stats = [
-    { icon: Lightbulb, value: impactStats.innovations, label: t("stats.innovations") },
-    { icon: Users, value: impactStats.innovators, label: t("stats.innovators") },
-    { icon: Building2, value: impactStats.institutions, label: t("stats.institutions") },
-    { icon: Map, value: impactStats.regions, label: t("stats.regions") },
+    { icon: Lightbulb, value: data.stats.innovations, label: t("stats.innovations") },
+    { icon: Users, value: data.stats.innovators, label: t("stats.innovators") },
+    { icon: Building2, value: data.stats.institutions, label: t("stats.institutions") },
+    { icon: Map, value: data.stats.regions, label: t("stats.regions") },
   ];
   const steps = [
     { icon: Rocket, title: t("how.1.title"), body: t("how.1.body") },
@@ -438,25 +667,36 @@ function Impact() {
       <div className="pointer-events-none absolute inset-0 bg-grid [mask-image:radial-gradient(ellipse_at_center,black,transparent_75%)]" />
       <div className="pointer-events-none absolute -right-32 -top-32 size-96 rounded-full bg-gold/20 blur-3xl" />
       <div className="container-tie relative">
-        <p className="text-xs font-bold uppercase tracking-[0.16em] text-gold">{t("sec.impact.eyebrow")}</p>
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-gold">
+          {t("sec.impact.eyebrow")}
+        </p>
         <h2 className="mt-2 max-w-2xl text-2xl font-bold sm:text-4xl">{t("sec.impact.title")}</h2>
         <div className="mt-10 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-navy-foreground/10 bg-navy-foreground/10 lg:grid-cols-4">
           {stats.map((s) => (
             <div key={s.label} className="bg-navy/60 p-5 backdrop-blur sm:p-7">
               <s.icon className="size-5 text-gold" aria-hidden />
-              <p className="mt-4 font-display text-3xl font-bold sm:text-4xl">{fmt.format(s.value)}+</p>
+              <p className="mt-4 font-display text-3xl font-bold sm:text-4xl">
+                {fmt.format(s.value)}
+              </p>
               <p className="mt-1 text-sm text-navy-foreground/70">{s.label}</p>
             </div>
           ))}
         </div>
 
         <div className="mt-16">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-gold">{t("sec.how.eyebrow")}</p>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-gold">
+            {t("sec.how.eyebrow")}
+          </p>
           <h3 className="mt-2 text-xl font-bold sm:text-2xl">{t("sec.how.title")}</h3>
           <ol className="mt-8 grid gap-4 md:grid-cols-3">
             {steps.map((s, i) => (
-              <li key={s.title} className="relative rounded-2xl border border-navy-foreground/10 bg-navy-foreground/[0.04] p-6">
-                <span className="absolute right-5 top-4 font-display text-5xl font-extrabold text-navy-foreground/[0.07]">0{i + 1}</span>
+              <li
+                key={s.title}
+                className="relative rounded-2xl border border-navy-foreground/10 bg-navy-foreground/[0.04] p-6"
+              >
+                <span className="absolute right-5 top-4 font-display text-5xl font-extrabold text-navy-foreground/[0.07]">
+                  0{i + 1}
+                </span>
                 <span className="grid size-11 place-items-center rounded-xl bg-gold text-gold-foreground">
                   <s.icon className="size-5" />
                 </span>
@@ -471,7 +711,7 @@ function Impact() {
   );
 }
 
-function FeaturedInnovators() {
+function FeaturedInnovators({ data }: { data: HomeData }) {
   const { t } = usePrefs();
   return (
     <section className="container-tie py-16 sm:py-24">
@@ -481,12 +721,14 @@ function FeaturedInnovators() {
         body={t("sec.innovators.body")}
         action={
           <Button asChild variant="outline">
-            <Link to="/innovators">{t("common.viewAll")} <ArrowRight /></Link>
+            <Link to="/innovators">
+              {t("common.viewAll")} <ArrowRight />
+            </Link>
           </Button>
         }
       />
       <div className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 scrollbar-none sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:grid-cols-4">
-        {innovators.slice(0, 4).map((p) => (
+        {data.innovators.slice(0, 4).map((p) => (
           <div key={p.slug} className="w-[80%] shrink-0 snap-start sm:w-auto">
             <InnovatorCard person={p} />
           </div>
@@ -496,7 +738,7 @@ function FeaturedInnovators() {
   );
 }
 
-function Opportunities({ onOpen }: { onOpen: (o: Opportunity) => void }) {
+function Opportunities({ data, onOpen }: { data: HomeData; onOpen: (o: Opportunity) => void }) {
   const { t } = usePrefs();
   return (
     <section className="border-t bg-card py-16 sm:py-24">
@@ -507,12 +749,14 @@ function Opportunities({ onOpen }: { onOpen: (o: Opportunity) => void }) {
           body={t("sec.opps.body")}
           action={
             <Button asChild variant="outline">
-              <Link to="/opportunities">{t("common.viewAll")} <ArrowRight /></Link>
+              <Link to="/opportunities">
+                {t("common.viewAll")} <ArrowRight />
+              </Link>
             </Button>
           }
         />
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {opportunities.slice(0, 3).map((o) => (
+          {data.opportunities.map((o) => (
             <OpportunityCard key={o.id} opp={o} onOpen={onOpen} />
           ))}
         </div>
@@ -534,7 +778,9 @@ function JoinCta() {
             <p className="mt-4 max-w-xl text-navy-foreground/75">{t("cta.body")}</p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Button asChild size="lg" variant="gold">
-                <Link to="/auth" search={{ mode: "join" }}>{t("nav.join")} <ArrowRight /></Link>
+                <Link to="/auth" search={{ mode: "join" }}>
+                  {t("nav.join")} <ArrowRight />
+                </Link>
               </Button>
               <Button asChild size="lg" variant="onNavy">
                 <Link to="/about">{t("nav.about")}</Link>
@@ -544,10 +790,13 @@ function JoinCta() {
           <ul className="grid gap-3 text-sm">
             {[
               { icon: BadgeCheck, text: "Verified institutions & profiles" },
-              { icon: MapPin, text: "Innovators from all 26 regions" },
+              { icon: MapPin, text: "Innovators from all 31 regions" },
               { icon: Handshake, text: "Your work, your ownership — always" },
             ].map((x) => (
-              <li key={x.text} className="flex items-center gap-3 rounded-xl border border-navy-foreground/10 bg-navy-foreground/[0.05] px-4 py-3">
+              <li
+                key={x.text}
+                className="flex items-center gap-3 rounded-xl border border-navy-foreground/10 bg-navy-foreground/[0.05] px-4 py-3"
+              >
                 <x.icon className="size-4 shrink-0 text-gold" /> {x.text}
               </li>
             ))}

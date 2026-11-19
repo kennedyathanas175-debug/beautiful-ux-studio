@@ -1,0 +1,14 @@
+Django==5.2.19
+djangorestframework==3.16.1
+django-cors-headers==4.9.0
+django-filter==25.2
+drf-spectacular==0.28.0
+Pillow==11.3.0
+psycopg[binary]==3.3.9
+gunicorn==23.0.0
+whitenoise==6.12.0
+python-dotenv==1.2.4
+
+# Testing
+pytest==9.0.3
+pytest-django==4.14.0

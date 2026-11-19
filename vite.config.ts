@@ -15,4 +15,20 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  vite: {
+    // Local development only. In production, serve the SPA and Django under the same
+    // origin (nginx/Caddy) or set VITE_API_URL to the public API URL.
+    server: {
+      proxy: {
+        "/api": {
+          target: process.env["API_PROXY_TARGET"] ?? "http://127.0.0.1:8000",
+          changeOrigin: false,
+        },
+        "/media": {
+          target: process.env["API_PROXY_TARGET"] ?? "http://127.0.0.1:8000",
+          changeOrigin: false,
+        },
+      },
+    },
+  },
 });
