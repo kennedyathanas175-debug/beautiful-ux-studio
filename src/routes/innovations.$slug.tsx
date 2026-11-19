@@ -29,6 +29,8 @@ import { InnovationCard, LikeSaveActions } from "@/components/site/cards";
 import { CommentSection } from "@/components/site/CommentSection";
 import { CollaborationDialog } from "@/components/site/CollaborationDialog";
 import { ReportDialog } from "@/components/site/ReportDialog";
+import { MediaGallery } from "@/components/site/MediaGallery";
+import { InnovationVideoSection } from "@/components/site/InnovationVideoSection";
 import { ErrorState, PageLoader } from "@/components/site/states";
 import { useAuth } from "@/lib/auth";
 import { fetchInnovationForLoader, useInnovation, useInnovationsList } from "@/lib/queries";
@@ -118,6 +120,10 @@ function InnovationPage() {
     .slice(0, 3);
   const collaborationStatus = item.viewer.collaborationStatus;
   const isOwner = item.viewer.isOwner;
+  const media = item.media ?? [];
+  const galleryImages = media.filter((entry) => entry.kind === "image");
+  const videos = media.filter((entry) => entry.kind === "video");
+  const heroImage = item.image ?? galleryImages[0]?.thumbnailUrl ?? null;
 
   const share = async () => {
     const url = window.location.href;
@@ -149,9 +155,9 @@ function InnovationPage() {
     <article>
       <div className="relative">
         <div className="relative h-[42vh] min-h-[280px] overflow-hidden bg-navy sm:h-[52vh]">
-          {item.image ? (
+          {heroImage ? (
             <img
-              src={item.image}
+              src={heroImage}
               alt={item.title}
               width={1200}
               height={800}
@@ -230,6 +236,10 @@ function InnovationPage() {
               {item.description}
             </p>
           </section>
+
+          {videos.length > 0 && <InnovationVideoSection videos={videos} />}
+
+          {galleryImages.length > 0 && <MediaGallery images={galleryImages} title={item.title} />}
 
           <div className="grid gap-4 md:grid-cols-2">
             <InfoBlock

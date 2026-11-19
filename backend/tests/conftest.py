@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 from datetime import date, timedelta
 
 import pytest
@@ -10,6 +11,17 @@ from rest_framework.test import APIClient
 from accounts.models import User
 from ecosystem.models import Category, Innovation, Institution
 from opportunities.models import Opportunity
+
+
+@pytest.fixture(scope="session", autouse=True)
+def clean_test_media():
+    from django.conf import settings
+
+    shutil.rmtree(settings.MEDIA_ROOT, ignore_errors=True)
+    shutil.rmtree(settings.PRIVATE_MEDIA_ROOT, ignore_errors=True)
+    yield
+    shutil.rmtree(settings.MEDIA_ROOT, ignore_errors=True)
+    shutil.rmtree(settings.PRIVATE_MEDIA_ROOT, ignore_errors=True)
 
 
 @pytest.fixture(autouse=True)

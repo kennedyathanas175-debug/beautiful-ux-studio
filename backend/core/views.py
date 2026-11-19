@@ -78,7 +78,7 @@ class HomeView(APIView):
         user = request.user
         published = Innovation.objects.filter(status=Innovation.Status.PUBLISHED)
         base = published.select_related("category", "creator", "institution").prefetch_related(
-            "team", "institution__focus", "category"
+            "team", "institution__focus", "category", "media"
         )
 
         latest = annotate_innovation_metrics(base, user).order_by("-published_at")[:4]

@@ -1,8 +1,14 @@
 from __future__ import annotations
 
+import mimetypes
+import re
+from pathlib import Path
+
 from django.db.models import Count, Exists, F, OuterRef, Q
+from django.http import FileResponse, Http404, HttpResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.utils.http import content_disposition_header
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly
@@ -21,6 +27,7 @@ from .models import (
     Innovation,
     InnovationBookmark,
     InnovationLike,
+    InnovationMedia,
     Institution,
     Report,
 )
@@ -133,7 +140,7 @@ class InnovationViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         qs = Innovation.objects.select_related("category", "creator", "institution").prefetch_related(
-            "team", "team__institution", "category", "institution__focus"
+            "team", "team__institution", "category", "institution__focus", "media"
         )
         if self.action == "list":
             mine = self.request.query_params.get("mine") in {"1", "true"}
@@ -542,7 +549,7 @@ class BookmarkListView(APIView):
     def get(self, request):
         innovations = Innovation.objects.filter(
             bookmarks__user=request.user, status=Innovation.Status.PUBLISHED
-        ).select_related("category", "creator", "institution").prefetch_related("team", "institution__focus")
+        ).select_related("category", "creator", "institution").prefetch_related("team", "institution__focus", "media")
         innovations = annotate_innovation_metrics(innovations, request.user).order_by("-bookmarks__created_at")
         from opportunities.models import Opportunity
         from opportunities.serializers import (
@@ -570,3 +577,136 @@ class BookmarkListView(APIView):
 
 # Kept here so the module exposes the user serializer for the moderation overview.
 __all__ = ["CategoryViewSet", "InstitutionViewSet", "InnovationViewSet", "UserSerializer"]
+
+
+
+def _media_is_public(media: InnovationMedia) -> bool:
+    return media.innovation.status == Innovation.Status.PUBLISHED
+
+
+def _can_view_media(request, media: InnovationMedia) -> bool:
+    if _media_is_public(media):
+        return True
+    user = request.user
+    return bool(
+        user
+        and user.is_authenticated
+        and (user.is_staff or media.innovation.creator_id == user.id)
+    )
+
+
+def _media_cache_headers(response, media: InnovationMedia):
+    if _media_is_public(media):
+        response["Cache-Control"] = "public, max-age=3600"
+    else:
+        response["Cache-Control"] = "private, no-store"
+    return response
+
+
+def _content_type(media: InnovationMedia, field, fallback: str) -> str:
+    if media.mime_type:
+        return media.mime_type
+    if field and field.name:
+        guessed = mimetypes.guess_type(field.name)[0]
+        if guessed:
+            return guessed
+    return fallback
+
+
+class InnovationMediaFileView(APIView):
+    """Permission-checked streaming endpoint for gallery images and videos."""
+
+    permission_classes = [AllowAny]
+
+    def get(self, request, media_id):
+        media = get_object_or_404(
+            InnovationMedia.objects.select_related("innovation"), pk=media_id
+        )
+        if not _can_view_media(request, media):
+            raise Http404("Media not found.")
+        field = media.file
+        if not field or not field.name or not field.storage.exists(field.name):
+            raise Http404("Media file not found.")
+        content_type = _content_type(media, field, "application/octet-stream")
+        filename = media.original_filename or Path(field.name).name
+        size = media.file_size or field.size
+        range_header = request.headers.get("Range", "")
+        match = re.match(r"bytes=(\d*)-(\d*)$", range_header.strip())
+        if match:
+            start_raw, end_raw = match.groups()
+            try:
+                start = int(start_raw) if start_raw else 0
+                end = int(end_raw) if end_raw else size - 1
+            except ValueError:
+                start, end = 0, size - 1
+            if start >= size or start < 0:
+                response = HttpResponse(status=416)
+                response["Content-Range"] = f"bytes */{size}"
+                response["Accept-Ranges"] = "bytes"
+                return response
+            end = min(end, size - 1)
+            length = max(end - start + 1, 0)
+            handle = field.open("rb")
+            handle.seek(start)
+
+            def chunks():
+                try:
+                    remaining = length
+                    while remaining > 0:
+                        piece = handle.read(min(64 * 1024, remaining))
+                        if not piece:
+                            break
+                        remaining -= len(piece)
+                        yield piece
+                finally:
+                    handle.close()
+
+            response = StreamingHttpResponse(chunks(), status=206, content_type=content_type)
+            response["Content-Range"] = f"bytes {start}-{end}/{size}"
+            response["Content-Length"] = str(length)
+            response["Accept-Ranges"] = "bytes"
+            response["Content-Disposition"] = content_disposition_header(False, filename)
+            return _media_cache_headers(response, media)
+
+        handle = field.open("rb")
+        response = FileResponse(
+            handle,
+            as_attachment=False,
+            filename=filename,
+            content_type=content_type,
+        )
+        response["Accept-Ranges"] = "bytes"
+        return _media_cache_headers(response, media)
+
+
+class InnovationMediaThumbnailView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, media_id):
+        media = get_object_or_404(
+            InnovationMedia.objects.select_related("innovation"), pk=media_id
+        )
+        if not _can_view_media(request, media):
+            raise Http404("Media not found.")
+        field = media.thumbnail
+        if not field or not field.name or not field.storage.exists(field.name):
+            raise Http404("Thumbnail not found.")
+        handle = field.open("rb")
+        response = FileResponse(
+            handle,
+            as_attachment=False,
+            filename=f"{Path(field.name).stem}.jpg",
+            content_type="image/jpeg",
+        )
+        response["Accept-Ranges"] = "none"
+        return _media_cache_headers(response, media)
+
+
+__all__ = [
+    "CategoryViewSet",
+    "InstitutionViewSet",
+    "InnovationViewSet",
+    "InnovationMediaFileView",
+    "InnovationMediaThumbnailView",
+    "UserSerializer",
+]

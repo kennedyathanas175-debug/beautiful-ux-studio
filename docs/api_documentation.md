@@ -326,8 +326,37 @@ Owners can always see their own drafts/hidden content; the public only sees `pub
 
 - `status`: `draft` or `published`. `hidden`/`archived` are controlled by staff or deletion.
 - `teamEmails` must belong to existing active TIE accounts; the creator is excluded from the team list.
-- Image: multipart field `image`; max 5 MB; optional.
+- Cover image: multipart field `image`; max 5 MB; optional. This remains the catalogue-card cover.
 - New content is published immediately by default (`AUTO_PUBLISH_INNOVATIONS=true`), matching the existing platform's open publishing model. Moderators can hide content after reports or review. Set `AUTO_PUBLISH_INNOVATIONS=false` to make new content drafts by default.
+
+### Innovation media uploads
+
+Registered in `InnovationMedia`, not embedded in the innovation row. Media is stored in private filesystem storage and streamed through a permission-checked API endpoint.
+
+| Field               | Type                      | Notes                                                                    |
+| ------------------- | ------------------------- | ------------------------------------------------------------------------ |
+| `images`            | repeated file (multipart) | Up to 4 new gallery images; JPG/JPEG/PNG/WebP; max 10 MB each by default |
+| `videos`            | repeated file (multipart) | Up to 2 new videos; MP4/WebM; max 50 MB each by default                  |
+| `videoPosters`      | repeated file (multipart) | One browser-generated poster per new video, in the same order; max 4 MB  |
+| `primaryVideoIndex` | integer                   | Index in the new `videos` list to designate as the pitch video (0 or 1)  |
+| `primaryVideoId`    | integer                   | Existing video ID to designate as the pitch video                        |
+| `removeMediaIds`    | repeated integer / array  | Existing media to remove in the same update                              |
+
+Rules:
+
+- Max **4 images** and **2 videos** per innovation, counting existing media not being removed.
+- Exactly one video is designated `pitch`; the other video(s) become `demo`. If no primary is supplied, the first remaining video becomes the pitch video.
+- Image files are verified with Pillow; video MIME, extension and MP4/WebM container magic bytes are checked server-side.
+- Image thumbnails (900×900 max, JPEG) and video posters are generated server-side and stored privately.
+- Removing/replacing media deletes the old private object and thumbnail via a post-delete signal.
+- The API also exposes a dedicated protected read endpoint:
+
+| Method | Path                     | Auth                                                     | Description                                              |
+| ------ | ------------------------ | -------------------------------------------------------- | -------------------------------------------------------- |
+| GET    | `/media/{id}/file/`      | Public for published innovations; owner/staff for drafts | Streams the original image/video with HTTP Range support |
+| GET    | `/media/{id}/thumbnail/` | Same rule                                                | Streams the generated image thumbnail or video poster    |
+
+Media attached to drafts, hidden or archived innovations returns `404` to anonymous visitors and non-owners. Published media is public and cacheable for one hour.
 
 ### Likes and bookmarks
 
@@ -559,6 +588,8 @@ curl -b /tmp/tie-cookies.txt -X POST \
 | See own drafts/hidden content            | —         | —             | ✅             | ✅                                     |
 | Create innovation                        | —         | ✅            | —              | ✅                                     |
 | Edit/delete an innovation                | —         | —             | ✅             | ✅                                     |
+| View/upload/replace/delete draft media   | —         | —             | ✅             | ✅                                     |
+| View published media                     | ✅        | ✅            | ✅             | ✅                                     |
 | Like/bookmark/comment/apply              | —         | ✅            | ✅             | ✅                                     |
 | Send collaboration requests              | —         | ✅            | ✅             | ✅                                     |
 | Accept/decline collaboration             | —         | —             | recipient only | recipient only                         |

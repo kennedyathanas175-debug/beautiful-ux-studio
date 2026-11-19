@@ -67,35 +67,41 @@ Signed-in members can publish an innovation with a title, summary, full descript
 
 Published innovations appear in the public explorer, on the home page, in search results and on their own shareable detail page.
 
-### 4.3 Discovery and search
+### 4.3 Image galleries and pitch videos
+
+Innovators can add up to four images and two videos to an innovation. One video can be clearly marked as the Innovation Pitch Video and the other as a demonstration, prototype walkthrough or extra explanation. Images and videos can be previewed, removed and replaced before saving, with a visible upload counter and progress indicator. The public innovation page presents images in a gallery that opens a larger view, plays the pitch video in a prominent position and shows demonstration videos separately. Pages with no media continue to display exactly as before.
+
+Media is stored privately until the innovation is published; draft media is only visible to its owner and platform staff. Public pages use image thumbnails and video posters, and videos are only downloaded when someone chooses to play them.
+
+### 4.4 Discovery and search
 
 The explorer now searches the live database rather than a fixed list. Visitors can search by keyword, filter by sector, development stage, institution, region or creator, and sort by recency, popularity, discussion or views. Results load in pages. The innovator, institution and opportunity directories are also searchable and filterable.
 
-### 4.4 Social engagement
+### 4.5 Social engagement
 
 Members can like and save innovations, comment on innovations, follow other members and receive notifications. Comments are visible in a discussion area on each innovation page, and members can remove their own comments. Moderators can act on reported content.
 
-### 4.5 Collaboration
+### 4.6 Collaboration
 
 A member can request collaboration either from an innovation page or from another member's profile. The request appears in the recipient's dashboard with the sender's message. The recipient can accept or decline; the sender can withdraw a pending request. Both parties receive updates in their notifications.
 
-### 4.6 Opportunities and applications
+### 4.7 Opportunities and applications
 
 The opportunities section lists challenges, hackathons, grants, research calls, internships and programmes with deadlines, eligibility and rewards. Members can save opportunities and apply with a motivation statement. Applicants can track the status of their applications. Administrators can review applications and record decisions, which notify the applicant.
 
-### 4.7 Personal dashboard
+### 4.8 Personal dashboard
 
 Every signed-in member has a dashboard showing an overview of their work: published and draft innovations, likes received, followers, pending requests, saved items, notifications and applications. From the dashboard they can manage innovations, update their profile, respond to collaboration requests and review their opportunity applications.
 
-### 4.8 Moderation and administration
+### 4.9 Moderation and administration
 
 Staff members have a moderation workspace showing open reports, hidden content, drafts, applications and content-management tools. They can resolve reports, hide or restore content, create and edit opportunities, create and edit institutions, and review applications. A separate full administration area is available for deeper data management.
 
-### 4.9 A reliable public catalogue
+### 4.10 A reliable public catalogue
 
 The existing sample innovations, profiles, institutions and opportunities were migrated into the database as the platform's starting catalogue. The site's images, including the Tanzanian scenic photographs and the TIE logo, were also made self-hosted so the public site displays correctly without depending on an external preview service.
 
-### 4.10 Bilingual and accessible experience
+### 4.11 Bilingual and accessible experience
 
 The existing English/Kiswahili language switch, light/dark theme and responsive layout were preserved. New dashboard and moderation screens follow the same visual language. Loading, empty, success and error states were added so users always know what is happening.
 
@@ -107,14 +113,14 @@ The existing English/Kiswahili language switch, light/dark theme and responsive 
 
 1. Opens the home page and sees live statistics, featured innovations, upcoming opportunities and featured innovators.
 2. Searches or explores by sector, stage, institution or region.
-3. Reads an innovation page with its problem, solution, objectives, technology, creator, team, institution and discussion.
+3. Reads an innovation page with its problem, solution, objectives, technology, creator, team, institution, image gallery, pitch/demonstration videos and discussion.
 4. Can browse freely. When they try to like, save, follow or comment, they are invited to sign in.
 
 ### A new member
 
 1. Creates an account in under a minute and is taken to their personal dashboard.
 2. Completes their public profile and adds a photo, skills and collaboration interests.
-3. Publishes a first innovation or saves one as a draft.
+3. Publishes a first innovation, adding gallery images and a short pitch video, or saves it as a draft.
 4. Shares the public innovation link with partners.
 5. Searches for opportunities, saves the relevant ones and applies with a motivation statement.
 
@@ -143,6 +149,7 @@ The visual identity — Tanzanian navy, gold and flag-inspired accents, the TIE 
 - **From a “coming soon” page to real accounts.** Registration, login, logout, password reset and profile management now work.
 - **From a single public website to a platform with roles.** Members, staff and superusers see the tools appropriate to their responsibilities, and the server enforces those limits.
 - **From local images to self-hosted assets.** Local development no longer shows broken logos and hero photographs.
+- **From text-only records to visual evidence.** Innovations can now include an image gallery, a primary pitch video and a demonstration video, with private draft handling and public playback.
 - **Better feedback.** Users see loading indicators, validation messages, success confirmations and understandable error messages.
 - **Mobile and keyboard-friendly navigation.** The existing responsive header now includes account and dashboard access, and new pages use the same accessible patterns.
 
@@ -154,11 +161,11 @@ The platform was tested at three levels.
 
 ### Automated backend testing
 
-**60 automated tests passed.** They covered account creation and validation, login and logout, password reset, session security, profile privacy, following, innovation publishing and editing, search and filtering, likes and bookmarks, comments, collaboration requests, reports, moderation, opportunities, applications and the migration of the original catalogue. The tests ran against a real production-grade database.
+**73 automated tests passed.** They covered account creation and validation, login and logout, password reset, session security, profile privacy, following, innovation publishing and editing, search and filtering, likes and bookmarks, comments, collaboration requests, reports, moderation, opportunities, applications and the migration of the original catalogue. The tests ran against a real production-grade database and included gallery/video upload, limits, private draft access, cleanup, thumbnails and video range requests.
 
 ### Automated frontend testing
 
-**22 automated interface tests passed.** They confirmed that every page is reachable and that the software handles secure sessions, form validation and connection failures correctly. The code passed strict quality checks and the production build completed successfully.
+**27 automated interface tests passed.** They confirmed that every page is reachable, that media choices are validated, and that the software handles secure sessions, form validation and connection failures correctly. The code passed strict quality checks and the production build completed successfully.
 
 ### Real browser testing
 
@@ -207,8 +214,9 @@ The following items are not blockers for launch but should be addressed operatio
 2. **File storage is local by default.** Uploaded images are saved on the application server. For multiple servers or high traffic, they should be stored in cloud object storage and served through a content delivery network.
 3. **Shared rate limiting needs a shared cache.** The current default rate-limit store is per server process. A Redis-style cache is recommended before running several application workers or servers.
 4. **No third-party integrations were required.** No mobile-money, SMS, AI or government registry integration formed part of the existing platform, so none was invented. They can be added later.
-5. **Accessibility and performance audits.** Basic responsive and keyboard use was checked, but a full accessibility audit for WCAG compliance and a large-scale performance test remain future work.
-6. **Administrator account.** A platform administrator must be created during deployment with the documented command; no default admin password is included for security reasons.
+5. **Large media and transcoding.** Video is stored and served directly; there is no server-side transcoding yet, so playback relies on browser codec support. Very large files, direct-to-cloud uploads and background processing are future operational improvements.
+6. **Accessibility and performance audits.** Basic responsive and keyboard use was checked, but a full accessibility audit for WCAG compliance and a large-scale performance test remain future work.
+7. **Administrator account.** A platform administrator must be created during deployment with the documented command; no default admin password is included for security reasons.
 
 ---
 

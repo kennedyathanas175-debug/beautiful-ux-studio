@@ -143,9 +143,10 @@ export function LikeSaveActions({
 }
 
 function InnovationImage({ item, className }: { item: Innovation; className?: string }) {
-  return item.image ? (
+  const source = item.image ?? item.previewImage ?? null;
+  return source ? (
     <img
-      src={item.image}
+      src={source}
       alt={item.title}
       width={1200}
       height={800}

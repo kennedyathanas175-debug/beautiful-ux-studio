@@ -8,3 +8,4 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_CLASSES": [],
 }
 MEDIA_ROOT = BASE_DIR / "test_media"  # noqa: F405
+PRIVATE_MEDIA_ROOT = BASE_DIR / "test_private_media"  # noqa: F405

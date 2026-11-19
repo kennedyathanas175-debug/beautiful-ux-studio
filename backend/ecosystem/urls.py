@@ -13,6 +13,12 @@ router.register("reports", views.ReportViewSet, basename="report")
 urlpatterns = [
     path("me/bookmarks/", views.BookmarkListView.as_view(), name="bookmarks"),
     path("innovations/<slug:slug>/comments/", views.CommentListCreateView.as_view(), name="innovation-comments"),
+    path("media/<int:media_id>/file/", views.InnovationMediaFileView.as_view(), name="innovation-media-file"),
+    path(
+        "media/<int:media_id>/thumbnail/",
+        views.InnovationMediaThumbnailView.as_view(),
+        name="innovation-media-thumbnail",
+    ),
     path("comments/<int:pk>/", views.CommentDetailView.as_view(), name="comment-detail"),
     path("", include(router.urls)),
 ]

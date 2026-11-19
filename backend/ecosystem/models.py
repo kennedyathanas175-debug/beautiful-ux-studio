@@ -1,15 +1,20 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 from django.db import models
 from django.db.models import Count, F
+from django.db.models.signals import post_delete, pre_save
+from django.dispatch import receiver
 from django.urls import reverse
 from django.utils import timezone
 
 from core.constants import INSTITUTION_TYPES, STAGES, TANZANIA_REGIONS
 from core.utils import clean_string_list, unique_slugify
+from .media import media_thumbnail_upload_to, media_upload_to, private_storage
 
 
 class Category(models.Model):
@@ -152,6 +157,101 @@ class Innovation(models.Model):
 
     def can_edit(self, user) -> bool:
         return bool(user and user.is_authenticated and (user.is_staff or self.creator_id == user.id))
+
+
+class InnovationMedia(models.Model):
+    class Kind(models.TextChoices):
+        IMAGE = "image", "Image"
+        VIDEO = "video", "Video"
+
+    class Designation(models.TextChoices):
+        GALLERY = "gallery", "Gallery image"
+        PITCH = "pitch", "Innovation pitch video"
+        DEMO = "demo", "Demonstration video"
+
+    innovation = models.ForeignKey(Innovation, on_delete=models.CASCADE, related_name="media")
+    kind = models.CharField(max_length=10, choices=Kind.choices)
+    designation = models.CharField(max_length=20, choices=Designation.choices, default=Designation.GALLERY)
+    file = models.FileField(storage=private_storage, upload_to=media_upload_to, max_length=500)
+    thumbnail = models.ImageField(
+        storage=private_storage,
+        upload_to=media_thumbnail_upload_to,
+        blank=True,
+        null=True,
+        max_length=500,
+    )
+    original_filename = models.CharField(max_length=255, blank=True)
+    file_size = models.PositiveBigIntegerField(default=0)
+    mime_type = models.CharField(max_length=100, blank=True)
+    order = models.PositiveSmallIntegerField(default=0)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["order", "id"]
+        indexes = [models.Index(fields=["innovation", "kind", "order"])]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(kind="image", designation="gallery")
+                    | models.Q(kind="video", designation__in=["pitch", "demo"])
+                ),
+                name="valid_innovation_media_designation",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.kind} for {self.innovation} ({self.original_filename})"
+
+    def save(self, *args, **kwargs):
+        if self.kind == self.Kind.VIDEO and self.designation == self.Designation.GALLERY:
+            self.designation = self.Designation.DEMO
+        if self.file:
+            try:
+                self.file_size = self.file.size
+            except (OSError, ValueError):
+                self.file_size = self.file_size or 0
+            if not self.mime_type:
+                from .media import mime_for_name
+
+                self.mime_type = mime_for_name(self.file.name)
+            if not self.original_filename:
+                self.original_filename = Path(self.file.name).name[:255]
+        super().save(*args, **kwargs)
+
+
+@receiver(pre_save, sender=InnovationMedia)
+def delete_replaced_innovation_media_files(sender, instance: InnovationMedia, **kwargs) -> None:
+    """Remove an old storage object when its field is replaced in place."""
+    if not instance.pk:
+        return
+    previous = (
+        InnovationMedia.objects.filter(pk=instance.pk)
+        .only("file", "thumbnail")
+        .first()
+    )
+    if not previous:
+        return
+    for old_field, new_field in (
+        (previous.file, instance.file),
+        (previous.thumbnail, instance.thumbnail),
+    ):
+        if old_field and old_field.name and old_field.name != (new_field.name if new_field else None):
+            try:
+                old_field.storage.delete(old_field.name)
+            except Exception:
+                pass
+
+
+@receiver(post_delete, sender=InnovationMedia)
+def delete_innovation_media_files(sender, instance: InnovationMedia, **kwargs) -> None:
+    """Remove private storage objects when media rows are removed/replaced."""
+    for field in (instance.file, instance.thumbnail):
+        if field and field.name:
+            try:
+                field.storage.delete(field.name)
+            except Exception:
+                # Cleanup must never block deletion of the database record.
+                pass
 
 
 class InnovationLike(models.Model):

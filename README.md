@@ -10,7 +10,8 @@ A full-stack platform for discovering Tanzanian innovations, connecting innovato
 
 - Secure registration, login, logout, password reset and session handling
 - Public innovator profiles with skills, interests, links, followers and published projects
-- Innovation publishing, drafts, editing, archiving, images, team members and search
+- Innovation publishing, drafts, editing, archiving, cover images, team members and search
+- Innovation media: up to 4 gallery images and 2 videos, with a designated Innovation Pitch Video, previews, progress, thumbnails/posters, protected draft media and public gallery/player
 - Likes, bookmarks, comments, follows and notifications stored in the database
 - Collaboration requests with accept/decline/withdraw workflow
 - Opportunity directory, saves, applications and staff review
@@ -54,8 +55,8 @@ Open http://localhost:8080. The development server proxies `/api` and `/media` t
 ## Quality checks
 
 ```bash
-cd backend && pytest                 # 60 tests
-cd .. && bun run test                # 22 tests
+cd backend && pytest                 # 73 tests
+cd .. && bun run test                # 27 tests
 bunx tsc --noEmit
 bun run lint
 bun run build

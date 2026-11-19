@@ -7,6 +7,7 @@ from .models import (
     Innovation,
     InnovationBookmark,
     InnovationLike,
+    InnovationMedia,
     Institution,
     Report,
 )
@@ -44,6 +45,15 @@ class InnovationAdmin(admin.ModelAdmin):
         ("Publication", {"fields": ("status", "featured", "trending", "published_at", "views", "legacy_likes", "search_text")}),
         ("Dates", {"fields": ("created_at", "updated_at")}),
     )
+
+
+@admin.register(InnovationMedia)
+class InnovationMediaAdmin(admin.ModelAdmin):
+    list_display = ("innovation", "kind", "designation", "original_filename", "file_size", "uploaded_at")
+    list_filter = ("kind", "designation")
+    search_fields = ("innovation__title", "original_filename")
+    autocomplete_fields = ("innovation",)
+    readonly_fields = ("file_size", "mime_type", "original_filename", "uploaded_at")
 
 
 @admin.register(Comment)

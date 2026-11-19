@@ -34,16 +34,17 @@ cd backend
 pytest
 ```
 
-Result: **60 passed, 0 failed** (≈8–10 seconds).
+Result: **73 passed, 0 failed** (≈8–10 seconds).
 
-| Test file                     | Tests | Area covered                                                                                                                                                                                                                | Result    |
-| ----------------------------- | ----: | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| Test file                     | Tests | Area covered                                                                                                                                                                                                                                          | Result    |
+| ----------------------------- | ----: | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
 | `tests/test_auth.py`          |    17 | Registration, validation, duplicate email, login/logout, session identity, CSRF enforcement, profile privacy, profile updates, follow/unfollow, password reset, notifications, dashboard, CORS, innovator directory privacy, multipart profile update | ✅ Passed |
-| `tests/test_catalog.py`       |     8 | Institution list/counts/filters, staff-only institution CRUD, category counts, home aggregate, health/stats, staff moderation access, OpenAPI schema                                                                        | ✅ Passed |
-| `tests/test_innovations.py`   |    15 | Public visibility rules, owner drafts, view counting, search/filter/sort, pagination, auth requirements, create/update ownership, team-by-email validation, draft save, staff moderation, image limits, multipart upload with image | ✅ Passed |
-| `tests/test_opportunities.py` |     6 | Public list and `open_only`, type/category filters, bookmarking, apply/review workflow, duplicate and expired applications, staff-only CRUD, archive                                                                        | ✅ Passed |
-| `tests/test_social.py`        |    13 | Likes/bookmarks, comments and notifications, staff comment hiding through reports, report validation and permissions, collaboration request lifecycle, profile collaboration, withdrawal                                    | ✅ Passed |
-| `tests/test_seed.py`          |     1 | Seed command idempotency and seeded relationships                                                                                                                                                                           | ✅ Passed |
+| `tests/test_catalog.py`       |     8 | Institution list/counts/filters, staff-only institution CRUD, category counts, home aggregate, health/stats, staff moderation access, OpenAPI schema                                                                                                  | ✅ Passed |
+| `tests/test_innovations.py`   |    15 | Public visibility rules, owner drafts, view counting, search/filter/sort, pagination, auth requirements, create/update ownership, team-by-email validation, draft save, staff moderation, image limits, multipart upload with image                   | ✅ Passed |
+| `tests/test_media.py`         |    13 | Gallery images/videos, primary pitch designation, limits, MIME/extension/magic validation, thumbnails/posters, protected draft media, range requests, removal/replacement cleanup, ownership                                                          | ✅ Passed |
+| `tests/test_opportunities.py` |     6 | Public list and `open_only`, type/category filters, bookmarking, apply/review workflow, duplicate and expired applications, staff-only CRUD, archive                                                                                                  | ✅ Passed |
+| `tests/test_social.py`        |    13 | Likes/bookmarks, comments and notifications, staff comment hiding through reports, report validation and permissions, collaboration request lifecycle, profile collaboration, withdrawal                                                              | ✅ Passed |
+| `tests/test_seed.py`          |     1 | Seed command idempotency and seeded relationships                                                                                                                                                                                                     | ✅ Passed |
 
 Additional backend checks:
 
@@ -52,6 +53,8 @@ Additional backend checks:
 - `python manage.py migrate` on PostgreSQL → OK.
 - SQLite migration smoke test (`DB_ENGINE=sqlite`) → OK.
 - `python manage.py spectacular --file ...` → schema generated (Swagger/ReDoc available; some serializer methods use generic schema fallbacks—see known issues).
+- `python manage.py makemigrations --check --dry-run` → only the committed `0002_innovationmedia` migration; no drift.
+- Private media files were confirmed outside the public media root and removed together with their database rows.
 - Seed command run twice → second run created 0 duplicates.
 - Health endpoint confirmed database connectivity: `{"status":"ok","database":"ok"}`.
 
@@ -61,7 +64,7 @@ Additional backend checks:
 
 | Check                | Command                                 | Result                                                 |
 | -------------------- | --------------------------------------- | ------------------------------------------------------ |
-| Unit/component tests | `bun run test`                          | **22 passed, 0 failed** (2 files)                      |
+| Unit/component tests | `bun run test`                          | **27 passed, 0 failed** (3 files)                      |
 | TypeScript           | `bunx tsc --noEmit`                     | ✅ No errors                                           |
 | ESLint               | `bun run lint`                          | ✅ 0 errors; 9 pre-existing Fast Refresh warnings only |
 | Production build     | `bun run build`                         | ✅ Successful (client + SSR bundles)                   |
@@ -71,6 +74,7 @@ Frontend test coverage:
 
 - Route table contains every public page plus dashboard, innovation editor, requests, saved, applications, notifications, profile and moderation.
 - API client builds query strings, sends session credentials, adds CSRF headers, normalises validation errors and network failures, and fetches the CSRF cookie once for concurrent requests.
+- Media validation helpers enforce the four-image/two-video rules, supported client types and configurable size limits.
 
 ---
 
@@ -111,7 +115,23 @@ Playwright drove a real Chromium browser against the running frontend (`:8080`) 
 6. Staff could see the applicant and review the opportunity application. ✅
 7. Non-staff users were denied access to moderation data by the API and redirected by the UI. ✅
 
-### Scenario D – Discovery, filters and responsive navigation
+### Scenario D – Innovation image gallery and pitch videos
+
+1. Uploaded four JPG images through the browser at once; the counter showed `4/4` and four previews. ✅
+2. Attempted a fifth image; the client-side limit message appeared and the count remained `4/4`. ✅
+3. Uploaded two WebM videos; the counter showed `2/2`, posters were generated in-browser and one pitch video was selected by default. ✅
+4. Published the innovation; the dashboard recorded it and the public page displayed a 4-image gallery and both videos. ✅
+5. Confirmed the primary section is labelled “Innovation Pitch Video” and the second section is “Demonstration”. ✅
+6. Reloaded the public page; media persisted. Anonymous browsing displayed the gallery and only loaded image/poster thumbnails on page load. ✅
+7. Confirmed video bytes were not requested until the user pressed play. ✅
+8. Opened the gallery lightbox and navigated/closed it with the dialog. ✅
+9. Edited the innovation: removed one image (counter changed to `3/4`), changed the primary video, replaced a video and saved. ✅
+10. Confirmed removed private files were not returned by the public API and replacement media appeared after reload. ✅
+11. Backend tests additionally verified draft media is `404` to anonymous/non-owner users, is accessible to its owner, and becomes public only after publication. ✅
+12. Mobile viewport (390 × 844) rendered the media form without horizontal overflow. ✅
+13. Switched the interface to Kiswahili and confirmed the media section labels (“Maonyesho ya ubunifu”, “Picha za ubunifu”, “Video za ubunifu”) rendered correctly. ✅
+
+### Scenario E – Discovery, filters and responsive navigation
 
 1. Explore category filter (Health) reduced the list correctly. ✅
 2. Keyword search (“solar”) returned matching innovations. ✅
@@ -151,18 +171,18 @@ The QA browser captured full-page screenshots for the home page, dashboard, inno
 
 ## 6. Passed / failed / blocked / untested summary
 
-| Status                                  | Count / detail                                                                                                                               |
-| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| Backend automated tests passed          | 60                                                                                                                                           |
-| Backend automated tests failed          | 0                                                                                                                                            |
-| Frontend unit tests passed              | 22                                                                                                                                           |
-| Frontend unit tests failed              | 0                                                                                                                                            |
-| TypeScript errors                       | 0                                                                                                                                            |
-| ESLint errors                           | 0                                                                                                                                            |
-| Production build                        | Passed                                                                                                                                       |
-| Browser E2E scenarios                   | 4 scenarios, all passed                                                                                                                      |
-| Blocked                                 | None for the implemented scope                                                                                                               |
-| Untested / requires real infrastructure | Production SMTP delivery, large-scale load/performance, third-party object storage, full WCAG/accessibility audit, external penetration test |
+| Status                                  | Count / detail                                                                                                                                                                            |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Backend automated tests passed          | 73                                                                                                                                                                                        |
+| Backend automated tests failed          | 0                                                                                                                                                                                         |
+| Frontend unit tests passed              | 27                                                                                                                                                                                        |
+| Frontend unit tests failed              | 0                                                                                                                                                                                         |
+| TypeScript errors                       | 0                                                                                                                                                                                         |
+| ESLint errors                           | 0                                                                                                                                                                                         |
+| Production build                        | Passed                                                                                                                                                                                    |
+| Browser E2E scenarios                   | 5 scenarios, all passed (including media upload/playback)                                                                                                                                 |
+| Blocked                                 | None for the implemented scope                                                                                                                                                            |
+| Untested / requires real infrastructure | Production SMTP delivery, large-scale upload/performance testing, third-party object storage/CDN, full WCAG/accessibility audit, external penetration test, server-side video transcoding |
 
 The email password-reset flow was tested end-to-end at the API level using Django's locmem/console email backend. Real inbox delivery depends on production SMTP credentials and was not available in the QA environment.
 
